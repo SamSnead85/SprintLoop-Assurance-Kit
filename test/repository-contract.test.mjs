@@ -5,6 +5,8 @@ import test from 'node:test';
 
 const root = path.resolve(import.meta.dirname, '..');
 const ACTION_REVISION = '0d3f6f0a27f7244d0ec0eb6d924df191b6180a0a';
+const CHECKOUT_REVISION = '3d3c42e5aac5ba805825da76410c181273ba90b1';
+const SETUP_NODE_REVISION = '820762786026740c76f36085b0efc47a31fe5020';
 
 test('repository text is checked out with deterministic LF line endings', async () => {
   const attributes = await readFile(path.join(root, '.gitattributes'), 'utf8');
@@ -104,12 +106,16 @@ test('all workflow checkouts disable credential persistence and runners are fixe
     assert.doesNotMatch(workflow, /ubuntu-latest/);
     const checkouts = workflow.match(/uses: actions\/checkout@[^\n]+/g) ?? [];
     assert.ok(checkouts.length > 0, `${relative} has no checkout`);
+    assert.ok(
+      checkouts.every((checkout) => checkout.includes(`actions/checkout@${CHECKOUT_REVISION}`)),
+      `${relative} must use the reviewed checkout revision`,
+    );
     assert.equal((workflow.match(/persist-credentials: false/g) ?? []).length, checkouts.length, relative);
   }
   const ci = await readFile(path.join(root, '.github/workflows/ci.yml'), 'utf8');
   assert.match(ci, /os: \[ubuntu-24\.04, macos-14, windows-2022\]/);
   assert.match(ci, /node: \[22\.23\.2, 24\.20\.0\]/);
-  assert.match(ci, /actions\/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e/);
+  assert.match(ci, new RegExp(`actions/setup-node@${SETUP_NODE_REVISION}`));
   assert.match(ci, /package-manager-cache: false/);
   assert.match(ci, /token: ''/);
   assert.match(ci, /mirror-token: ''/);
@@ -121,7 +127,7 @@ test('all workflow checkouts disable credential persistence and runners are fixe
     '.github/workflows/release-candidate.yml',
   ]) {
     const workflow = await readFile(path.join(root, relative), 'utf8');
-    assert.match(workflow, /actions\/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e/);
+    assert.match(workflow, new RegExp(`actions/setup-node@${SETUP_NODE_REVISION}`));
     assert.match(workflow, /node-version: 24\.20\.0/);
     assert.match(workflow, /package-manager-cache: false/);
     assert.match(workflow, /token: ''/);
@@ -130,6 +136,12 @@ test('all workflow checkouts disable credential persistence and runners are fixe
     assert.doesNotMatch(workflow, /major<20|major===20|major>=25/);
   }
   const example = await readFile(path.join(root, 'examples/github/assurance.yml'), 'utf8');
+  assert.match(example, new RegExp(`actions/setup-node@${SETUP_NODE_REVISION}`));
+  assert.match(example, /node-version: 24\.20\.0/);
+  assert.match(example, /package-manager-cache: false/);
+  assert.match(example, /token: ''/);
+  assert.match(example, /mirror-token: ''/);
+  assert.match(example, /process\.versions\.node!==['"]24\.20\.0['"]/);
   assert.match(example, /repository: \$\{\{ github\.event\.pull_request\.head\.repo\.full_name \}\}/);
   assert.match(example, /repository: \$\{\{ github\.repository \}\}/);
   assert.match(example, /sparse-checkout:\s*\|\s*\.assurance\/policy\.json\s*\.assurance\/trust\.json/);

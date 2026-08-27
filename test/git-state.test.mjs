@@ -110,7 +110,7 @@ test('receiver Git observation never lazily fetches missing objects through cand
     await assert.rejects(inspectGitState(client), /missing|bad object|not a tree|unable to read tree|invalid object|needed a single revision/i);
     await assert.rejects(access(marker), { code: 'ENOENT' });
   } finally {
-    await rm(fixture, { recursive: true, force: true });
+    await rm(fixture, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 

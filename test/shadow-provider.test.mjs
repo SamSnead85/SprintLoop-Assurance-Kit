@@ -11,6 +11,8 @@ import { prepareShadowBundle } from '../src/prepare-shadow-bundle.mjs';
 import { validateManifest } from '../src/validate.mjs';
 
 const kitRoot = path.resolve(import.meta.dirname, '..');
+const CHECKOUT_REVISION = '3d3c42e5aac5ba805825da76410c181273ba90b1';
+const SETUP_NODE_REVISION = '820762786026740c76f36085b0efc47a31fe5020';
 
 test('shadow provider deterministically captures exact-candidate evidence and can emit only partial HOLD', async () => {
   await withShadowFixture(async (fixture) => {
@@ -145,6 +147,15 @@ test('GitHub wrapper binds the candidate before execution, permits only advisory
       const action = workflow.indexOf('name: Prepare partial shadow evidence');
       assert.ok(bind > -1 && bind < execute && execute < action, 'candidate must be bound before candidate code executes');
       assert.match(workflow, /candidate: \$\{\{ steps\.candidate\.outputs\.sha \}\}/);
+      const checkoutPins = [...workflow.matchAll(/actions\/checkout@([0-9a-f]{40})/g)]
+        .map((match) => match[1]);
+      assert.deepEqual(checkoutPins, [CHECKOUT_REVISION, CHECKOUT_REVISION]);
+      assert.match(workflow, new RegExp(`actions/setup-node@${SETUP_NODE_REVISION}`));
+      assert.match(workflow, /node-version: 24\.20\.0/);
+      assert.match(workflow, /package-manager-cache: false/);
+      assert.match(workflow, /token: ''/);
+      assert.match(workflow, /mirror-token: ''/);
+      assert.match(workflow, /process\.versions\.node!==['"]24\.20\.0['"]/);
     }
 
     const denied = spawnSync(process.execPath, ['src/prepare-shadow-bundle.mjs'], {

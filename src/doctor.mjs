@@ -80,7 +80,13 @@ async function diagnoseSetupBounded(options, deadline, signal) {
   const gitVersion = await gitVersionCheck(deadline, signal);
   checks.push(gitVersion);
   if (gitVersion.status === 'error') {
-    checks.push(repositoryFailure(new Error('Git safety capability unavailable')));
+    // Repository exactness cannot be observed until Git's safety capabilities
+    // are established. Preserve an exhausted shared deadline as a timeout for
+    // the dependent repository check instead of downgrading it to unavailable.
+    const repositoryError = gitVersion.code === 'GIT_CHECK_TIMEOUT'
+      ? timeoutError('REPOSITORY_PREREQUISITE_TIMEOUT')
+      : new Error('Git safety capability unavailable');
+    checks.push(repositoryFailure(repositoryError));
     checks.push(unavailableDocumentCheck('policy', options.policyPath));
     checks.push(unavailableDigestCheck('policy', options.expectedPolicyDigest));
     checks.push(unavailableDocumentCheck('trust', options.trustPath));

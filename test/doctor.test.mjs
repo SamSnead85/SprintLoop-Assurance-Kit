@@ -334,7 +334,7 @@ test('doctor hard deadline aborts a non-settling Git process', async (context) =
   }
 });
 
-test('doctor repeatedly aborts a repository command that loses the reporting deadline race', async (context) => {
+test('doctor repeatedly classifies an exhausted Git/repository deadline as a repository timeout', async (context) => {
   if (process.platform === 'win32') return context.skip('fixture uses a POSIX executable shim');
   const root = await mkdtemp(path.join(os.tmpdir(), 'assurance-doctor-repository-timeout-'));
   try {
@@ -365,6 +365,41 @@ test('doctor repeatedly aborts a repository command that loses the reporting dea
       const report = JSON.parse(result.stdout);
       assert.equal(byId(report, 'repository.exactness').code, 'REPOSITORY_CHECK_TIMEOUT');
     }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('doctor preserves a Git capability timeout for the dependent repository check', async (context) => {
+  if (process.platform === 'win32') return context.skip('fixture uses a POSIX executable shim');
+  const root = await mkdtemp(path.join(os.tmpdir(), 'assurance-doctor-git-capability-timeout-'));
+  try {
+    const gitPath = path.join(root, 'git');
+    await writeFile(gitPath, [
+      '#!/bin/sh',
+      'if [ "$1" = "--version" ]; then',
+      '  printf "git version 2.50.1\\n"',
+      '  exit 0',
+      'fi',
+      'exec sleep 5',
+      '',
+    ].join('\n'));
+    await chmod(gitPath, 0o755);
+    const started = performance.now();
+    const result = spawnSync(process.execPath, [
+      path.join(kitRoot, 'src/cli.mjs'),
+      'doctor', '--root', root, '--timeout-ms', '250', '--json',
+    ], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${root}:/bin:/usr/bin` },
+      timeout: 1_500,
+    });
+    const elapsed = performance.now() - started;
+    assert.equal(result.status, DOCTOR_EXIT_CODES.error, result.stderr);
+    assert.ok(elapsed < 1_000, `doctor took ${elapsed}ms after its reporting deadline`);
+    const report = JSON.parse(result.stdout);
+    assert.equal(byId(report, 'runtime.git').code, 'GIT_CHECK_TIMEOUT');
+    assert.equal(byId(report, 'repository.exactness').code, 'REPOSITORY_CHECK_TIMEOUT');
   } finally {
     await rm(root, { recursive: true, force: true });
   }

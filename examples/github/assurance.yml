@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout exact pull-request candidate
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.sha }}
@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
       - name: Checkout protected receiver configuration
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ${{ github.repository }}
           ref: ${{ github.event.pull_request.base.sha }}
@@ -29,6 +29,16 @@ jobs:
             .assurance/trust.json
           sparse-checkout-cone-mode: false
           persist-credentials: false
+      - name: Install exact Assurance runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.20.0
+          check-latest: false
+          package-manager-cache: false
+          token: ''
+          mirror-token: ''
+      - name: Require exact Node runtime
+        run: node -e "if(process.versions.node!=='24.20.0')process.exit(1)"
       # A receiver-governed step must first authenticate to verifier-controlled
       # storage and populate this exact inbox. The checked stub performs no fetch
       # and fails closed when the external bundle is absent or misbound.
