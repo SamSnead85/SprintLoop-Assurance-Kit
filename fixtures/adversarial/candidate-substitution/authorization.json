@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "assurance.sprintloop.dev/authorization/v1",
+  "authorizationId": "authorization:example-001",
+  "subjectDigest": "git:sha1:9d10bb3ff25e3f56c1a768ddf201dd6763c4bca2",
+  "manifestDigest": "sha256:81a3cfd2b2c50f8e15e011a6005053bab5ece110bbf14138bde7dc16823ec0c1",
+  "receiptDigest": "sha256:bcfe851241797b05defdf1d9097cb15e655715f232dc084266b1f363b28d8756",
+  "policyDigest": "sha256:989b16c961d347bddb52b188c90ae8b9c78c1557f0dad2a82033bf2d8807e37a",
+  "trustStoreDigest": "sha256:fb36ce5b79b519b5f13c2dbd0d1241e477266eb6997359999710ce646dac710f",
+  "trustDomain": "example:release",
+  "decision": "ALLOW",
+  "authority": {
+    "principalId": "person:release-authority",
+    "ownerId": "team:release-management",
+    "controlDomain": "release-management",
+    "role": "release-authority",
+    "kind": "human"
+  },
+  "scope": {
+    "repository": "https://example.invalid/engineering/sample-service",
+    "environment": "staging",
+    "operation": "release"
+  },
+  "issuedAt": "2030-01-01T11:59:00.000Z",
+  "expiresAt": "2030-01-01T15:59:00.000Z",
+  "signature": {
+    "algorithm": "Ed25519",
+    "keyId": "key:example-authority-v1",
+    "value": "RDe/S8VMQO4e/q1sdyB9JMIPQc7zNbQC5UyiyKx/7gboQnUFTu93pjTLEpQJmRH0SioqVvmPPfU5wjv0gNYeAg=="
+  }
+}

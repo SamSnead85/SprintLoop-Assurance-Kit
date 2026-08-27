@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "example.test-report/v1",
+  "subjectDigest": "git:sha1:9d10bb3ff25e3f56c1a768ddf201dd6763c4bca2",
+  "suite": "release",
+  "passed": 42,
+  "failed": 0
+}

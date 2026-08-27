@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "assurance.sprintloop.dev/trust-store/v1",
+  "trustDomain": "example:release",
+  "keys": [
+    {
+      "keyId": "key:example-verifier-v1",
+      "principalId": "service:independent-verifier",
+      "ownerId": "team:assurance",
+      "controlDomain": "assurance",
+      "roles": [
+        "verifier"
+      ],
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAXhNy3d8WpXdAugbHeKNaRlfxZFCIjIwFJXV2YdC2Wzk=\n-----END PUBLIC KEY-----\n",
+      "validFrom": "2029-12-31T12:00:00.000Z",
+      "validUntil": "2031-01-01T12:00:00.000Z"
+    },
+    {
+      "keyId": "key:example-authority-v1",
+      "principalId": "person:release-authority",
+      "ownerId": "team:release-management",
+      "controlDomain": "release-management",
+      "roles": [
+        "authority"
+      ],
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAVyMslOtBJHweltH10KR/Fb3Jb9W9pgRCACNHre+aj20=\n-----END PUBLIC KEY-----\n",
+      "validFrom": "2029-12-31T12:00:00.000Z",
+      "validUntil": "2031-01-01T12:00:00.000Z"
+    }
+  ]
+}

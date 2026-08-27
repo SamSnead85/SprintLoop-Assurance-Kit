@@ -1,0 +1,71 @@
+name: Materialize external assurance bundle
+description: Fail-closed structural preflight for an authenticated out-of-band exact-candidate bundle already placed on the runner.
+author: LockedIn Labs contributors
+inputs:
+  source:
+    description: Pre-populated provider inbox outside the candidate checkout. This Action performs no fetch or authentication.
+    required: true
+  destination:
+    description: New out-of-tree directory for the checked bundle.
+    required: true
+  candidate-root:
+    description: Exact Git candidate checkout; source and destination must be outside it.
+    required: true
+  candidate:
+    description: Receiver-observed exact candidate commit.
+    required: true
+  policy:
+    description: Protected receiver-owned policy document.
+    required: true
+  trust:
+    description: Protected receiver-owned trust store.
+    required: true
+  expected-policy-digest:
+    description: Receiver-owned canonical policy document digest.
+    required: true
+  expected-trust-digest:
+    description: Receiver-owned canonical trust-store document digest.
+    required: true
+  expected-repository:
+    description: Receiver-owned repository URI.
+    required: true
+  expected-environment:
+    description: Receiver-owned target environment.
+    required: true
+outputs:
+  bundle-root:
+    description: Materialized bundle root.
+    value: ${{ steps.materialize.outputs.bundle_root }}
+  evidence-root:
+    description: Root containing evidence paths declared by the manifest.
+    value: ${{ steps.materialize.outputs.evidence_root }}
+  manifest:
+    description: Materialized manifest path.
+    value: ${{ steps.materialize.outputs.manifest }}
+  receipt:
+    description: Materialized verifier receipt path.
+    value: ${{ steps.materialize.outputs.receipt }}
+  authorization:
+    description: Materialized receiver authorization path.
+    value: ${{ steps.materialize.outputs.authorization }}
+runs:
+  using: composite
+  steps:
+    - name: Require supported Node runtime
+      shell: bash
+      run: node -e "const [major,minor]=process.versions.node.split('.').map(Number);if(major<20||(major===20&&minor<11)||major>=25){console.error('SprintLoop Assurance Kit requires Node >=20.11 and <25');process.exit(1)}"
+    - name: Materialize pre-populated external bundle
+      id: materialize
+      shell: bash
+      env:
+        ASSURANCE_BUNDLE_SOURCE: ${{ inputs.source }}
+        ASSURANCE_BUNDLE_DESTINATION: ${{ inputs.destination }}
+        ASSURANCE_CANDIDATE_ROOT: ${{ inputs.candidate-root }}
+        ASSURANCE_CANDIDATE: ${{ inputs.candidate }}
+        ASSURANCE_POLICY: ${{ inputs.policy }}
+        ASSURANCE_TRUST: ${{ inputs.trust }}
+        ASSURANCE_EXPECTED_POLICY: ${{ inputs.expected-policy-digest }}
+        ASSURANCE_EXPECTED_TRUST: ${{ inputs.expected-trust-digest }}
+        ASSURANCE_EXPECTED_REPOSITORY: ${{ inputs.expected-repository }}
+        ASSURANCE_EXPECTED_ENVIRONMENT: ${{ inputs.expected-environment }}
+      run: node "${{ github.action_path }}/../src/materialize-bundle.mjs"

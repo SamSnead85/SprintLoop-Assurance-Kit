@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://assurance.sprintloop.dev/schemas/verifier-receipt.v1.schema.json",
+  "title": "SprintLoop independent verifier receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "receiptId", "subjectDigest", "manifestDigest", "policyDigest", "trustStoreDigest", "trustDomain", "evidenceDigests", "verdict", "verifier", "issuedAt", "expiresAt"],
+  "properties": {
+    "schemaVersion": { "const": "assurance.sprintloop.dev/verifier-receipt/v1" },
+    "receiptId": { "$ref": "#/$defs/id" },
+    "subjectDigest": { "$ref": "#/$defs/candidateDigest" },
+    "manifestDigest": { "$ref": "#/$defs/sha256" },
+    "policyDigest": { "$ref": "#/$defs/sha256" },
+    "trustStoreDigest": { "$ref": "#/$defs/sha256" },
+    "trustDomain": { "$ref": "#/$defs/id" },
+    "evidenceDigests": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/sha256" } },
+    "verdict": { "enum": ["PASS", "HOLD", "BLOCK"] },
+    "verifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principalId", "ownerId", "controlDomain", "engine", "method"],
+      "properties": {
+        "principalId": { "$ref": "#/$defs/id" },
+        "ownerId": { "$ref": "#/$defs/id" },
+        "controlDomain": { "$ref": "#/$defs/id" },
+        "engine": { "type": "string", "minLength": 1 },
+        "method": { "enum": ["deterministic", "hybrid"] },
+        "model": { "type": "string", "minLength": 1, "description": "Optional descriptive metadata. It does not establish independence or authority." }
+      }
+    },
+    "issuedAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "signature": { "$ref": "#/$defs/signature" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$" },
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "candidateDigest": { "type": "string", "pattern": "^git:(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$" },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "keyId", "value"],
+      "properties": {
+        "algorithm": { "const": "Ed25519" },
+        "keyId": { "$ref": "#/$defs/id" },
+        "value": { "type": "string", "contentEncoding": "base64" }
+      }
+    }
+  }
+}

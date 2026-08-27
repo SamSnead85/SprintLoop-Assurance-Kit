@@ -1,0 +1,14 @@
+{
+  "conclusion": "PASS",
+  "at": "2030-01-01T12:00:00.000Z",
+  "candidate": "git:sha1:9d10bb3ff25e3f56c1a768ddf201dd6763c4bca2",
+  "receiverContext": {
+    "expectedPolicyDigest": "sha256:989b16c961d347bddb52b188c90ae8b9c78c1557f0dad2a82033bf2d8807e37a",
+    "expectedTrustStoreDigest": "sha256:e1d9654f41078f6ef67ab1a222039cdb5e9dff6f1e9ad090a2b0b9c112744676",
+    "expectedRepository": "https://example.invalid/engineering/sample-service",
+    "expectedEnvironment": "staging",
+    "actualCandidateDigest": "git:sha1:9d10bb3ff25e3f56c1a768ddf201dd6763c4bca2",
+    "actualTreeDigest": "git-tree:sha1:8a91a64c1d4a82d98b0f5a839459b12280f542ad",
+    "workingTreeClean": true
+  }
+}

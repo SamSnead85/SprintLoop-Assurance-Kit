@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://assurance.sprintloop.dev/schemas/authorization.v1.schema.json",
+  "title": "SprintLoop finite release authorization v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "authorizationId", "subjectDigest", "manifestDigest", "receiptDigest", "policyDigest", "trustStoreDigest", "trustDomain", "decision", "authority", "scope", "issuedAt", "expiresAt"],
+  "properties": {
+    "schemaVersion": { "const": "assurance.sprintloop.dev/authorization/v1" },
+    "authorizationId": { "$ref": "#/$defs/id" },
+    "subjectDigest": { "$ref": "#/$defs/candidateDigest" },
+    "manifestDigest": { "$ref": "#/$defs/sha256" },
+    "receiptDigest": { "$ref": "#/$defs/sha256" },
+    "policyDigest": { "$ref": "#/$defs/sha256" },
+    "trustStoreDigest": { "$ref": "#/$defs/sha256" },
+    "trustDomain": { "$ref": "#/$defs/id" },
+    "decision": { "enum": ["ALLOW", "DENY"] },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principalId", "ownerId", "controlDomain", "role", "kind"],
+      "properties": {
+        "principalId": { "$ref": "#/$defs/id" },
+        "ownerId": { "$ref": "#/$defs/id" },
+        "controlDomain": { "$ref": "#/$defs/id" },
+        "role": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["human", "service"] }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "environment", "operation"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "environment": { "type": "string", "minLength": 1 },
+        "operation": { "const": "release" }
+      }
+    },
+    "issuedAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "signature": { "$ref": "#/$defs/signature" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$" },
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "candidateDigest": { "type": "string", "pattern": "^git:(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$" },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "keyId", "value"],
+      "properties": {
+        "algorithm": { "const": "Ed25519" },
+        "keyId": { "$ref": "#/$defs/id" },
+        "value": { "type": "string", "contentEncoding": "base64" }
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+name: Release candidate (no publish)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout immutable source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Require supported Node runtime
+        run: node -e "const [major,minor]=process.versions.node.split('.').map(Number);if(major<20||(major===20&&minor<11)||major>=25)process.exit(1)"
+      - name: Install from lockfile without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Test, scan, inventory, pack, and digest without publishing
+        run: npm run release:dry-run
+      - name: Record release subjects in job summary
+        run: |
+          {
+            printf '%s\n\n' '## Unpublished GitHub-only release candidate'
+            printf '%s\n\n' 'No npm package, release, container, or attestation was published.'
+            printf '%s\n' '```json'
+            cat artifacts/release-subject.json
+            printf '%s\n\n' '```'
+            cat artifacts/release-notes.md
+          } >> "$GITHUB_STEP_SUMMARY"

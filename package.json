@@ -1,0 +1,65 @@
+{
+  "name": "@sprintloop/assurance-kit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Model-neutral exact-candidate assurance: deterministic evidence, independent verifier receipts, finite authorization, and offline-verifiable release dossiers.",
+  "type": "module",
+  "license": "MIT",
+  "author": "LockedIn Labs contributors",
+  "engines": {
+    "node": ">=20.11 <25"
+  },
+  "bin": {
+    "sprintloop-assure": "./bin/sprintloop-assure.mjs"
+  },
+  "exports": {
+    ".": "./src/index.mjs",
+    "./schemas/*": "./schemas/*"
+  },
+  "files": [
+    "action.yml",
+    "materialize-bundle/",
+    "bin/",
+    "src/",
+    "schemas/",
+    "docs/",
+    "examples/",
+    "README.md",
+    "SECURITY.md",
+    "CONTRIBUTING.md",
+    "GOVERNANCE.md",
+    "CODE_OF_CONDUCT.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SamSnead85/SprintLoop-Assurance-Kit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SamSnead85/SprintLoop-Assurance-Kit/issues"
+  },
+  "homepage": "https://assurance.sprintloop.ai",
+  "keywords": [
+    "agentic-ai",
+    "software-supply-chain",
+    "policy-as-code",
+    "github-actions",
+    "slsa",
+    "release-governance",
+    "devsecops"
+  ],
+  "scripts": {
+    "demo": "node src/cli.mjs demo --out artifacts/demo",
+    "test": "node --test --test-reporter=spec",
+    "lint": "node scripts/lint.mjs",
+    "fixtures:generate": "node scripts/generate-fixtures.mjs",
+    "fixtures:check": "node scripts/check-fixtures.mjs",
+    "scan:sensitive": "node scripts/scan-sensitive.mjs",
+    "sbom": "node scripts/generate-sbom.mjs",
+    "pack:check": "node scripts/pack-check.mjs",
+    "package:smoke": "node scripts/package-smoke.mjs",
+    "verify": "npm run lint && npm test && npm run fixtures:check && npm run scan:sensitive && npm run sbom && npm run pack:check && npm run package:smoke",
+    "release:dry-run": "node scripts/release-dry-run.mjs"
+  }
+}

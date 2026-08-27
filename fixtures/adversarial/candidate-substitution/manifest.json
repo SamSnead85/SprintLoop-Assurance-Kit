@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "assurance.sprintloop.dev/manifest/v1",
+  "changeId": "change:example-001",
+  "candidate": {
+    "repository": "https://example.invalid/engineering/sample-service",
+    "digest": "git:sha1:0000000000000000000000000000000000000000",
+    "treeDigest": "git-tree:sha1:8a91a64c1d4a82d98b0f5a839459b12280f542ad",
+    "environment": "staging",
+    "producer": {
+      "principalId": "agent:builder",
+      "ownerId": "team:delivery",
+      "controlDomain": "delivery"
+    }
+  },
+  "intent": {
+    "id": "intent:example-001",
+    "digest": "sha256:cbfbc6e061305e2337ae0fb88796b23fcfb4633ed2eb3689d8800333e70f6ee5"
+  },
+  "evidence": [
+    {
+      "id": "evidence:release-tests",
+      "type": "test-report",
+      "path": "evidence/test-report.json",
+      "mediaType": "application/json",
+      "digest": "sha256:a6e27a43288255148f58ed7cd5074e28eb015a6555d945fc590d4777297ac44e",
+      "subjectDigest": "git:sha1:9d10bb3ff25e3f56c1a768ddf201dd6763c4bca2"
+    },
+    {
+      "id": "evidence:sbom",
+      "type": "sbom",
+      "path": "evidence/sbom.spdx.json",
+      "mediaType": "application/spdx+json",
+      "digest": "sha256:50a8bb6ecbf091da86f3ae82593cfa382a99bdd725e823c415e92c7865061108",
+      "subjectDigest": "git:sha1:9d10bb3ff25e3f56c1a768ddf201dd6763c4bca2"
+    }
+  ]
+}

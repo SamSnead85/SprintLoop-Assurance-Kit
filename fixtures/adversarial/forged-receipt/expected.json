@@ -1,0 +1,14 @@
+{
+  "conclusion": "BLOCK",
+  "at": "2030-01-01T12:00:00.000Z",
+  "candidate": "git:sha1:9d10bb3ff25e3f56c1a768ddf201dd6763c4bca2",
+  "receiverContext": {
+    "expectedPolicyDigest": "sha256:989b16c961d347bddb52b188c90ae8b9c78c1557f0dad2a82033bf2d8807e37a",
+    "expectedTrustStoreDigest": "sha256:fcfad4544065ce64ff77f06b67ce3785bf25e75909156cd5e212bae150eeeeda",
+    "expectedRepository": "https://example.invalid/engineering/sample-service",
+    "expectedEnvironment": "staging",
+    "actualCandidateDigest": "git:sha1:9d10bb3ff25e3f56c1a768ddf201dd6763c4bca2",
+    "actualTreeDigest": "git-tree:sha1:8a91a64c1d4a82d98b0f5a839459b12280f542ad",
+    "workingTreeClean": true
+  }
+}

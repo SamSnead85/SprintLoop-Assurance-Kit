@@ -1,0 +1,105 @@
+name: SprintLoop Assurance
+description: Fail closed unless an exact candidate has deterministic evidence, independent verification, and finite named authorization.
+author: LockedIn Labs contributors
+branding:
+  icon: shield
+  color: purple
+inputs:
+  candidate:
+    description: Exact lowercase Git commit SHA (40/64 hex) or canonical git:sha1/git:sha256 digest.
+    required: true
+  manifest:
+    description: Out-of-band candidate and deterministic evidence manifest; must not come from the candidate checkout.
+    required: true
+  receipt:
+    description: Out-of-band independently signed verifier receipt.
+    required: true
+  authorization:
+    description: Out-of-band finite signed authorization from the named release authority.
+    required: true
+  policy:
+    description: Protected receiver-owned assurance policy; must not come from the candidate or bundle.
+    required: true
+  trust:
+    description: Protected receiver-owned public-key trust store; must not come from the candidate or bundle.
+    required: true
+  candidate-root:
+    description: Exact Git checkout whose HEAD/tree must match candidate and manifest.
+    required: true
+  evidence-root:
+    description: Materialized out-of-band root for resolving evidence paths; must be separate from the Git checkout.
+    required: true
+  expected-policy-digest:
+    description: Receiver-owned canonical document digest for the protected policy.
+    required: true
+  expected-trust-digest:
+    description: Receiver-owned canonical document digest for the protected trust store.
+    required: true
+  expected-repository:
+    description: Receiver-owned exact repository URI.
+    required: true
+  expected-environment:
+    description: Receiver-owned exact target environment.
+    required: true
+  dossier:
+    description: Output path for the portable dossier.
+    required: true
+  embed-evidence:
+    description: Embed evidence bytes for full offline verification; review dossier data classification first.
+    required: false
+    default: "false"
+outputs:
+  conclusion:
+    description: PASS, HOLD, or BLOCK.
+    value: ${{ steps.assure.outputs.conclusion }}
+  dossier:
+    description: Dossier output path.
+    value: ${{ steps.assure.outputs.dossier }}
+  dossier-digest:
+    description: Canonical SHA-256 dossier digest.
+    value: ${{ steps.assure.outputs.dossier_digest }}
+runs:
+  using: composite
+  steps:
+    - name: Require supported Node runtime
+      shell: bash
+      run: node -e "const [major,minor]=process.versions.node.split('.').map(Number);if(major<20||(major===20&&minor<11)||major>=25){console.error('SprintLoop Assurance Kit requires Node >=20.11 and <25');process.exit(1)}"
+    - id: assure
+      shell: bash
+      env:
+        ASSURANCE_CANDIDATE: ${{ inputs.candidate }}
+        ASSURANCE_MANIFEST: ${{ inputs.manifest }}
+        ASSURANCE_RECEIPT: ${{ inputs.receipt }}
+        ASSURANCE_AUTHORIZATION: ${{ inputs.authorization }}
+        ASSURANCE_POLICY: ${{ inputs.policy }}
+        ASSURANCE_TRUST: ${{ inputs.trust }}
+        ASSURANCE_GIT_ROOT: ${{ inputs.candidate-root }}
+        ASSURANCE_EVIDENCE_ROOT: ${{ inputs.evidence-root }}
+        ASSURANCE_EXPECTED_POLICY: ${{ inputs.expected-policy-digest }}
+        ASSURANCE_EXPECTED_TRUST: ${{ inputs.expected-trust-digest }}
+        ASSURANCE_EXPECTED_REPOSITORY: ${{ inputs.expected-repository }}
+        ASSURANCE_EXPECTED_ENVIRONMENT: ${{ inputs.expected-environment }}
+        ASSURANCE_DOSSIER: ${{ inputs.dossier }}
+        ASSURANCE_EMBED: ${{ inputs.embed-evidence }}
+      run: |
+        set -euo pipefail
+        args=(
+          check
+          --candidate "$ASSURANCE_CANDIDATE"
+          --manifest "$ASSURANCE_MANIFEST"
+          --receipt "$ASSURANCE_RECEIPT"
+          --authorization "$ASSURANCE_AUTHORIZATION"
+          --policy "$ASSURANCE_POLICY"
+          --trust "$ASSURANCE_TRUST"
+          --git-root "$ASSURANCE_GIT_ROOT"
+          --evidence-root "$ASSURANCE_EVIDENCE_ROOT"
+          --expected-policy-digest "$ASSURANCE_EXPECTED_POLICY"
+          --expected-trust-digest "$ASSURANCE_EXPECTED_TRUST"
+          --expected-repository "$ASSURANCE_EXPECTED_REPOSITORY"
+          --expected-environment "$ASSURANCE_EXPECTED_ENVIRONMENT"
+          --dossier "$ASSURANCE_DOSSIER"
+        )
+        if [[ "$ASSURANCE_EMBED" == "true" ]]; then
+          args+=(--embed-evidence)
+        fi
+        node "${{ github.action_path }}/src/cli.mjs" "${args[@]}"

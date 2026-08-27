@@ -1,0 +1,22 @@
+name: Feature request
+description: Propose an interoperable capability or protocol change.
+title: "proposal: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and user
+    validations:
+      required: true
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Trust-boundary and compatibility impact
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior and alternatives
+    validations:
+      required: true

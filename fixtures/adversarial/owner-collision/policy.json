@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "assurance.sprintloop.dev/policy/v1",
+  "policyId": "policy:consequential-default",
+  "requiredEvidenceTypes": [
+    "test-report",
+    "sbom"
+  ],
+  "allowedVerifierMethods": [
+    "deterministic",
+    "hybrid"
+  ],
+  "separation": {
+    "producerVerifier": "owner",
+    "verifierAuthority": "principal",
+    "producerAuthority": "principal"
+  },
+  "requireNamedHumanAuthority": true,
+  "requireSignedReceipt": true,
+  "requireSignedAuthorization": true,
+  "maxReceiptValiditySeconds": 86400,
+  "maxAuthorizationValiditySeconds": 14400,
+  "maxClockSkewSeconds": 60,
+  "maxEvidenceBytes": 5242880,
+  "maxEvidenceItems": 32,
+  "maxTotalEvidenceBytes": 20971520
+}

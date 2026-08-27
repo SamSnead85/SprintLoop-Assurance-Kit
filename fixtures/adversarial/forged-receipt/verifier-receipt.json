@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "assurance.sprintloop.dev/verifier-receipt/v1",
+  "receiptId": "receipt:example-001",
+  "subjectDigest": "git:sha1:9d10bb3ff25e3f56c1a768ddf201dd6763c4bca2",
+  "manifestDigest": "sha256:81a3cfd2b2c50f8e15e011a6005053bab5ece110bbf14138bde7dc16823ec0c1",
+  "policyDigest": "sha256:989b16c961d347bddb52b188c90ae8b9c78c1557f0dad2a82033bf2d8807e37a",
+  "trustStoreDigest": "sha256:fcfad4544065ce64ff77f06b67ce3785bf25e75909156cd5e212bae150eeeeda",
+  "trustDomain": "example:release",
+  "evidenceDigests": [
+    "sha256:a6e27a43288255148f58ed7cd5074e28eb015a6555d945fc590d4777297ac44e",
+    "sha256:50a8bb6ecbf091da86f3ae82593cfa382a99bdd725e823c415e92c7865061108"
+  ],
+  "verdict": "BLOCK",
+  "verifier": {
+    "principalId": "service:independent-verifier",
+    "ownerId": "team:assurance",
+    "controlDomain": "assurance",
+    "engine": "example-deterministic-verifier",
+    "method": "deterministic"
+  },
+  "issuedAt": "2030-01-01T11:59:00.000Z",
+  "expiresAt": "2030-01-02T11:59:00.000Z",
+  "signature": {
+    "algorithm": "Ed25519",
+    "keyId": "key:example-verifier-v1",
+    "value": "0RPbNwf0sUnHfJ8IvI+EUVQgTKRdPRXAExNMR4io1GcAm3h7Xzv6umBbsuxvImxUq6WM41qRBACusqN5Zh9vAQ=="
+  }
+}

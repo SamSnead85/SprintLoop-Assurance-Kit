@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://assurance.sprintloop.dev/schemas/trust-store.v1.schema.json",
+  "title": "SprintLoop receiver-owned trust store v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "trustDomain", "keys"],
+  "properties": {
+    "schemaVersion": { "const": "assurance.sprintloop.dev/trust-store/v1" },
+    "trustDomain": { "$ref": "#/$defs/id" },
+    "keys": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["keyId", "principalId", "ownerId", "controlDomain", "roles", "publicKeyPem"],
+        "properties": {
+          "keyId": { "$ref": "#/$defs/id" },
+          "principalId": { "$ref": "#/$defs/id" },
+          "ownerId": { "$ref": "#/$defs/id" },
+          "controlDomain": { "$ref": "#/$defs/id" },
+          "roles": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["verifier", "authority"] } },
+          "publicKeyPem": { "type": "string", "minLength": 1 },
+          "validFrom": { "type": "string", "format": "date-time" },
+          "validUntil": { "type": "string", "format": "date-time" },
+          "revokedAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$" }
+  }
+}

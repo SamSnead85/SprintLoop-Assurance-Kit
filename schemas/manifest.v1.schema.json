@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://assurance.sprintloop.dev/schemas/manifest.v1.schema.json",
+  "title": "SprintLoop exact-candidate manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "changeId", "candidate", "intent", "evidence"],
+  "properties": {
+    "schemaVersion": { "const": "assurance.sprintloop.dev/manifest/v1" },
+    "changeId": { "$ref": "#/$defs/id" },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "digest", "treeDigest", "environment", "producer"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/candidateDigest" },
+        "treeDigest": { "$ref": "#/$defs/treeDigest" },
+        "environment": { "type": "string", "minLength": 1 },
+        "producer": { "$ref": "#/$defs/identity" }
+      }
+    },
+    "intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "digest"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "digest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "path", "mediaType", "digest", "subjectDigest"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "type": { "$ref": "#/$defs/id" },
+          "path": { "type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$" },
+          "mediaType": { "type": "string", "minLength": 1 },
+          "digest": { "$ref": "#/$defs/sha256" },
+          "subjectDigest": { "$ref": "#/$defs/candidateDigest" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$" },
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "candidateDigest": { "type": "string", "pattern": "^git:(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$" },
+    "treeDigest": { "type": "string", "pattern": "^git-tree:(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$" },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["principalId", "ownerId", "controlDomain"],
+      "properties": {
+        "principalId": { "$ref": "#/$defs/id" },
+        "ownerId": { "$ref": "#/$defs/id" },
+        "controlDomain": { "$ref": "#/$defs/id" }
+      }
+    }
+  }
+}

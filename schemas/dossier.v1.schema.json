@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://assurance.sprintloop.dev/schemas/dossier.v1.schema.json",
+  "title": "SprintLoop portable assurance dossier v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "createdAt", "anchoring", "evidenceMode", "receiverContext", "inputs", "inputDigests", "attachments", "decision", "dossierDigest"],
+  "properties": {
+    "schemaVersion": { "const": "assurance.sprintloop.dev/dossier/v1" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "anchoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "statement"],
+      "properties": {
+        "status": { "const": "UNANCHORED" },
+        "statement": { "type": "string", "minLength": 1 }
+      }
+    },
+    "evidenceMode": { "enum": ["embedded", "digest-only"] },
+    "receiverContext": { "$ref": "#/$defs/receiverContext" },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest", "receipt", "authorization", "policy"],
+      "properties": {
+        "manifest": { "type": "object" },
+        "receipt": { "type": ["object", "null"] },
+        "authorization": { "type": ["object", "null"] },
+        "policy": { "type": "object" }
+      }
+    },
+    "inputDigests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest", "receipt", "authorization", "policy"],
+      "properties": {
+        "manifest": { "$ref": "#/$defs/sha256" },
+        "receipt": { "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+        "authorization": { "oneOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+        "policy": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "path", "mediaType", "digest", "encoding", "data"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "path": { "type": "string", "minLength": 1 },
+          "mediaType": { "type": "string", "minLength": 1 },
+          "digest": { "$ref": "#/$defs/sha256" },
+          "encoding": { "const": "base64" },
+          "data": { "type": "string", "contentEncoding": "base64" }
+        }
+      }
+    },
+    "decision": { "$ref": "#/$defs/decision" },
+    "dossierDigest": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "receiverContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expectedPolicyDigest", "expectedTrustStoreDigest", "expectedRepository", "expectedEnvironment", "actualCandidateDigest", "actualTreeDigest", "workingTreeClean"],
+      "properties": {
+        "expectedPolicyDigest": { "$ref": "#/$defs/sha256" },
+        "expectedTrustStoreDigest": { "$ref": "#/$defs/sha256" },
+        "expectedRepository": { "type": "string", "minLength": 1 },
+        "expectedEnvironment": { "type": "string", "minLength": 1 },
+        "actualCandidateDigest": { "type": "string", "pattern": "^git:(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$" },
+        "actualTreeDigest": { "type": "string", "pattern": "^git-tree:(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$" },
+        "workingTreeClean": { "type": "boolean" }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conclusion", "subjectDigest", "evaluatedAt", "verificationLevel", "summary", "reasons"],
+      "properties": {
+        "conclusion": { "enum": ["PASS", "HOLD", "BLOCK"] },
+        "subjectDigest": { "type": "string" },
+        "evaluatedAt": { "type": "string", "format": "date-time" },
+        "verificationLevel": { "enum": ["FULL", "ENVELOPE_ONLY"] },
+        "summary": { "type": "string" },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["code", "severity", "message"],
+            "properties": {
+              "code": { "type": "string" },
+              "severity": { "enum": ["HOLD", "BLOCK"] },
+              "message": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+name: Bug report
+description: Report reproducible non-security behavior.
+title: "bug: "
+body:
+  - type: markdown
+    attributes:
+      value: Do not report vulnerabilities or include secrets or customer data here. Use private vulnerability reporting.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal public-safe reproduction
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual decision
+    validations:
+      required: true
