@@ -222,8 +222,11 @@ test('bounded document reads and structural complexity checks return sanitized e
 
 test('duplicate protected JSON keys are rejected before semantic validation', async () => {
   await withFixture(async (fixture) => {
-    const policy = JSON.stringify(fixture.bundle.policy);
-    const duplicate = policy.replace('{', '{"policyId":"attacker-shadow",');
+    const duplicate = `{${[
+      `${JSON.stringify('policyId')}:${JSON.stringify('attacker-shadow')}`,
+      ...Object.entries(fixture.bundle.policy)
+        .map(([key, value]) => `${JSON.stringify(key)}:${JSON.stringify(value)}`),
+    ].join(',')}}`;
     await writeFile(path.join(fixture.root, '.assurance/policy.json'), duplicate);
     commitAll(fixture.root, 'duplicate policy key');
 

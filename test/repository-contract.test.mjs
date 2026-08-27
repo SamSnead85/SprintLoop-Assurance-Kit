@@ -115,6 +115,20 @@ test('all workflow checkouts disable credential persistence and runners are fixe
   assert.match(ci, /mirror-token: ''/);
   assert.match(ci, /git --no-lazy-fetch --version/);
   assert.match(ci, /npm run lint && npm test && npm run fixtures:check && npm run package:smoke/);
+  for (const relative of [
+    '.github/workflows/remote-action-smoke.yml',
+    '.github/workflows/self-dogfood.yml',
+    '.github/workflows/release-candidate.yml',
+  ]) {
+    const workflow = await readFile(path.join(root, relative), 'utf8');
+    assert.match(workflow, /actions\/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e/);
+    assert.match(workflow, /node-version: 24\.20\.0/);
+    assert.match(workflow, /package-manager-cache: false/);
+    assert.match(workflow, /token: ''/);
+    assert.match(workflow, /mirror-token: ''/);
+    assert.match(workflow, /process\.versions\.node!==['"]24\.20\.0['"]/);
+    assert.doesNotMatch(workflow, /major<20|major===20|major>=25/);
+  }
   const example = await readFile(path.join(root, 'examples/github/assurance.yml'), 'utf8');
   assert.match(example, /repository: \$\{\{ github\.event\.pull_request\.head\.repo\.full_name \}\}/);
   assert.match(example, /repository: \$\{\{ github\.repository \}\}/);
