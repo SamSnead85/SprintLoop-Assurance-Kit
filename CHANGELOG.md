@@ -2,7 +2,7 @@
 
 All notable changes follow semantic versioning. The project is pre-1.0; minor releases may change contracts with an explicit migration note.
 
-## 0.2.0 — Unreleased
+## 0.2.0 — 2026-08-27
 
 - Add a zero-dependency local stdio MCP server with `2026-07-28` stateless discovery, `2025-11-25` / `2025-06-18` compatibility, and six deterministic advisory read-only tools.
 - Add closed JSON Schema 2020-12 tool/config contracts, logical non-overlapping root grants, identity-bound reads, bounded framing, source-pinned client examples, adversarial protocol/path/output tests, and installed-package smoke coverage.
@@ -10,7 +10,7 @@ All notable changes follow semantic versioning. The project is pre-1.0; minor re
 - Keep every MCP outcome non-enforcement-eligible with no network, credentials, private-key ingestion, signing, policy/trust mutation, SCM/check/deploy writes, or model sampling exposed.
 - Make `check --json` emit one parseable JSON document containing the decision and dossier coordinates.
 - Add the no-secret `prepare-shadow-bundle` composite Action and manual/scheduled example: it captures bounded producer evidence into a canonical partial manifest, always reports `HOLD`, and is structurally ineligible for enforcement or required-check use.
-- Harden Git observation with replacement objects disabled and a receiver-owned temporary index so candidate-controlled index flags cannot conceal tracked-byte drift.
+- Harden exact-candidate observation with replacement objects and lazy fetching disabled; canonical `ls-tree` inventory; raw blob, mode, symlink, ancestor, and portable-path checks; and a receiver-owned temporary index used only to enumerate non-ignored untracked files.
 
 ## 0.1.0 — 2026-08-27
 

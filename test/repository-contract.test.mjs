@@ -138,6 +138,8 @@ test('GitHub-only package and clean-room inventory are structural release requir
   assert.match(release, /npmPublished: false/);
   assert.match(release, /status.*--porcelain/);
   assert.match(release, /artifacts\/SHA256SUMS/);
+  assert.match(release, /rm\(path\.join\(root, 'artifacts'\)/);
+  assert.match(release, /Release artifact inventory is not exact/);
   assert.match(release, /actionRevision/);
   assert.match(release, /eight identical full immutable Action revisions/);
   assert.match(release, /examples\/github\/shadow-provider\.yml/);

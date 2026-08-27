@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -43,6 +43,9 @@ if (guidePins.length !== 1 || guidePins[0] !== actionRevision) {
   fail('release:dry-run requires the shadow-provider guide to use the reviewed Action revision');
 }
 
+// Release output is an exact, regenerated inventory. Ignored artifacts from an
+// earlier candidate must never be mistaken for assets of this source revision.
+await rm(path.join(root, 'artifacts'), { recursive: true, force: true });
 run('npm', ['run', 'verify']);
 await mkdir(path.join(root, 'artifacts'), { recursive: true });
 const packed = run('npm', ['pack', '--json', '--pack-destination', 'artifacts']);
@@ -83,6 +86,17 @@ await writeFile(
 );
 const notes = `# SprintLoop Assurance Kit ${details.version}\n\nGitHub prerelease candidate for source \`${source}\`.\n\n- Distribution: GitHub source/Action only; no npm package is published.\n- Release/tag source revision: \`${source}\`\n- Reviewed immutable Action revision: \`${actionRevision}\`\n- Candidate artifact: \`${details.filename}\`\n- Artifact digest: \`${packageRelease.digest}\`\n- SBOM: \`${packageRelease.sbom.path}\` (\`${packageRelease.sbom.digest}\`)\n- Verification: run \`npm ci --ignore-scripts && npm run verify\` from this exact source revision.\n- Status: pre-1.0 shadow/minimum integration; see the security and enforcement boundaries in README.\n`;
 await writeFile(path.join(root, 'artifacts/release-notes.md'), notes, 'utf8');
+const expectedInventory = [
+  'SHA256SUMS',
+  'package-release.json',
+  'release-notes.md',
+  'sbom.spdx.json',
+  details.filename,
+].sort();
+const actualInventory = (await readdir(path.join(root, 'artifacts'))).sort();
+if (JSON.stringify(actualInventory) !== JSON.stringify(expectedInventory)) {
+  fail(`Release artifact inventory is not exact: ${actualInventory.join(', ')}`);
+}
 process.stdout.write(`Unpublished GitHub candidate: ${packageRelease.filename} ${packageRelease.digest} source:${source}\n`);
 
 function digest(bytes) {
