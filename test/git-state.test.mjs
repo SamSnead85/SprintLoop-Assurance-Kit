@@ -59,9 +59,9 @@ test('receiver Git observation hashes raw bytes without executing candidate-conf
     git(root, ['-c', 'user.name=fixture', '-c', 'user.email=fixture@invalid', 'commit', '--quiet', '-m', 'attributes']);
     const filter = path.join(root, '.git/hostile-filter.sh');
     const marker = path.join(root, '.git/filter-ran');
-    await writeFile(filter, `#!/bin/sh\ntouch '${marker}'\nsed 's/^changed /canonical /'\n`);
+    await writeFile(filter, `#!/bin/sh\ntouch ${shellQuote(shellPath(marker))}\nsed 's/^changed /canonical /'\n`);
     await chmod(filter, 0o700);
-    git(root, ['config', 'filter.mask.clean', `sh ${filter}`]);
+    git(root, ['config', 'filter.mask.clean', `sh ${shellQuote(shellPath(filter))}`]);
     git(root, ['config', 'filter.mask.required', 'true']);
     await writeFile(path.join(root, 'app.txt'), 'changed bytes\n');
     const expectedBlob = git(root, ['ls-tree', 'HEAD', 'app.txt']).trim().split(/\s+/)[2];
@@ -135,7 +135,9 @@ test('receiver Git observation rejects tracked paths whose directory ancestor is
   }
 });
 
-test('receiver Git observation rejects tree names that become separators on another supported host', async () => {
+test('receiver Git observation rejects tree names that become separators on another supported host', {
+  skip: process.platform === 'win32' && 'Windows cannot create a Git worktree entry containing a backslash',
+}, async () => {
   await withRepository(async ({ root }) => {
     await writeFile(path.join(root, '..\\outside'), 'portable boundary\n');
     git(root, ['add', '--', '..\\outside']);
@@ -166,6 +168,7 @@ async function withRepository(callback) {
     await mkdir(root, { recursive: true });
     await writeFile(path.join(root, 'app.txt'), 'canonical bytes\n');
     git(root, ['init', '--quiet']);
+    git(root, ['config', 'core.autocrlf', 'false']);
     git(root, ['add', 'app.txt']);
     git(root, ['-c', 'user.name=fixture', '-c', 'user.email=fixture@invalid', 'commit', '--quiet', '-m', 'candidate']);
     const head = git(root, ['rev-parse', 'HEAD']).trim();
@@ -182,4 +185,8 @@ function git(root, args) {
 
 function shellQuote(value) {
   return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+function shellPath(value) {
+  return process.platform === 'win32' ? value.replaceAll('\\', '/') : value;
 }

@@ -181,18 +181,20 @@ test('GitHub wrapper binds the candidate before execution, permits only advisory
       ASSURANCE_PRODUCER_CONTROL_DOMAIN: fixture.options.producerControlDomain,
     };
 
-    const hostileName = 'forged\n::error title=attacker::owned.txt';
-    await writeFile(path.join(fixture.evidenceRoot, hostileName), 'undeclared\n');
-    const hostile = spawnSync(process.execPath, ['src/prepare-shadow-bundle.mjs'], {
-      cwd: kitRoot,
-      encoding: 'utf8',
-      env: { ...wrapperEnvironment, ASSURANCE_SHADOW_DESTINATION: path.join(fixture.runnerTemp, 'hostile-output') },
-    });
-    assert.equal(hostile.status, 2);
-    assert.equal((hostile.stderr.match(/\n/g) ?? []).length, 1, hostile.stderr);
-    assert.doesNotMatch(hostile.stderr, /::(?:error|warning|notice|debug|group|endgroup|add-mask|stop-commands)/i);
-    assert.doesNotMatch(hostile.stderr.slice(0, -1), /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/u);
-    await rm(path.join(fixture.evidenceRoot, hostileName));
+    if (process.platform !== 'win32') {
+      const hostileName = 'forged\n::error title=attacker::owned.txt';
+      await writeFile(path.join(fixture.evidenceRoot, hostileName), 'undeclared\n');
+      const hostile = spawnSync(process.execPath, ['src/prepare-shadow-bundle.mjs'], {
+        cwd: kitRoot,
+        encoding: 'utf8',
+        env: { ...wrapperEnvironment, ASSURANCE_SHADOW_DESTINATION: path.join(fixture.runnerTemp, 'hostile-output') },
+      });
+      assert.equal(hostile.status, 2);
+      assert.equal((hostile.stderr.match(/\n/g) ?? []).length, 1, hostile.stderr);
+      assert.doesNotMatch(hostile.stderr, /::(?:error|warning|notice|debug|group|endgroup|add-mask|stop-commands)/i);
+      assert.doesNotMatch(hostile.stderr.slice(0, -1), /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/u);
+      await rm(path.join(fixture.evidenceRoot, hostileName));
+    }
 
     const allowed = spawnSync(process.execPath, ['src/prepare-shadow-bundle.mjs'], {
       cwd: kitRoot,
