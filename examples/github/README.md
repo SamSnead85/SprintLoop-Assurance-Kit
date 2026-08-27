@@ -14,7 +14,7 @@
 
 Copy [assurance.yml](assurance.yml) into `.github/workflows/assurance.yml` and add the authenticated retrieval step before `Require authenticated out-of-band bundle`. On a fresh runner the checked materializer finds no inbox and exits nonzero by design; it is not a fetcher.
 
-Both Actions are pinned to reviewed execution revision `d5307358ce6a39d12de025748cb0676acbe461bf`. Keep both references identical and immutable; do not replace them with a branch or tag.
+All Actions are pinned to reviewed implementation revision `7dfb1e417256f08a7b5e149093cc4d4c5987ea5e`. Keep the references identical and immutable; do not replace them with a branch or tag.
 
 The inbox contract is `manifest.json`, `verifier-receipt.json`, `authorization.json`, and only manifest-relative evidence. It excludes policy, trust, credentials, private keys, and dossiers. Do not use a mutable `latest` object, a candidate-supplied locator, or candidate-local fallback. See [the provider contract](../../docs/BUNDLE-PROVIDER-CONTRACT.md).
 

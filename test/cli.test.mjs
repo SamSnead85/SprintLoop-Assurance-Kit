@@ -6,7 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 const root = path.resolve(import.meta.dirname, '..');
-const ACTION_REVISION = 'd5307358ce6a39d12de025748cb0676acbe461bf';
+const ACTION_REVISION = '7dfb1e417256f08a7b5e149093cc4d4c5987ea5e';
 
 test('CLI demo is a no-secret PASS golden path', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'assurance-kit-cli-'));

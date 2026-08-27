@@ -47,7 +47,7 @@ The policy and trust store are read only to validate the receiver context and li
 
 Use a dedicated workflow file on the protected default branch and a protected GitHub environment such as `assurance-shadow`. Grant only `contents: read`, do not expose repository or environment secrets, and never configure the job name as a required status check.
 
-The skeleton below is deliberately `workflow_dispatch`-only. Replace `<FULL_40_CHARACTER_REVIEWED_SHA>` with the immutable revision that contains this Action. Keep policy/trust in a protected receiver source and keep their canonical digests in protected environment variables.
+The skeleton below is deliberately `workflow_dispatch`-only and pins the reviewed immutable implementation revision that contains this Action. Keep policy/trust in a protected receiver source and keep their canonical digests in protected environment variables. Upgrade only by reviewing and replacing the complete SHA.
 
 ```yaml
 name: assurance-shadow-observe-only-NOT-A-GATE
@@ -128,7 +128,7 @@ jobs:
 
       - name: Prepare partial shadow evidence — always HOLD
         id: shadow
-        uses: SamSnead85/SprintLoop-Assurance-Kit/prepare-shadow-bundle@<FULL_40_CHARACTER_REVIEWED_SHA>
+        uses: SamSnead85/SprintLoop-Assurance-Kit/prepare-shadow-bundle@7dfb1e417256f08a7b5e149093cc4d4c5987ea5e
         with:
           candidate-root: candidate
           candidate: ${{ steps.candidate.outputs.sha }}

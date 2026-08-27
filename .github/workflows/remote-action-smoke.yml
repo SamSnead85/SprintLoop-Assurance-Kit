@@ -50,7 +50,7 @@ jobs:
             "$head_sha" "$policy_digest" "$trust_digest" >> "$GITHUB_OUTPUT"
       - name: Resolve reviewed remote materializer
         id: bundle
-        uses: SamSnead85/SprintLoop-Assurance-Kit/materialize-bundle@d5307358ce6a39d12de025748cb0676acbe461bf
+        uses: SamSnead85/SprintLoop-Assurance-Kit/materialize-bundle@7dfb1e417256f08a7b5e149093cc4d4c5987ea5e
         with:
           source: ${{ runner.temp }}/assurance-provider-inbox
           destination: ${{ runner.temp }}/assurance-bundle
@@ -64,7 +64,7 @@ jobs:
           expected-environment: remote-smoke
       - name: Resolve reviewed remote evaluator
         id: assure
-        uses: SamSnead85/SprintLoop-Assurance-Kit@d5307358ce6a39d12de025748cb0676acbe461bf
+        uses: SamSnead85/SprintLoop-Assurance-Kit@7dfb1e417256f08a7b5e149093cc4d4c5987ea5e
         with:
           candidate: ${{ steps.inputs.outputs.candidate }}
           candidate-root: .
@@ -85,7 +85,7 @@ jobs:
         run: test "$CONCLUSION" = PASS
       - name: Resolve reviewed remote advisory shadow preparer
         id: shadow
-        uses: SamSnead85/SprintLoop-Assurance-Kit/prepare-shadow-bundle@REPLACE_WITH_FULL_REVIEWED_SHA
+        uses: SamSnead85/SprintLoop-Assurance-Kit/prepare-shadow-bundle@7dfb1e417256f08a7b5e149093cc4d4c5987ea5e
         with:
           candidate-root: .
           candidate: ${{ steps.inputs.outputs.candidate }}

@@ -4,7 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 const root = path.resolve(import.meta.dirname, '..');
-const ACTION_REVISION = 'd5307358ce6a39d12de025748cb0676acbe461bf';
+const ACTION_REVISION = '7dfb1e417256f08a7b5e149093cc4d4c5987ea5e';
 
 test('composite Action requires the complete protected receiver context', async () => {
   const action = await readFile(path.join(root, 'action.yml'), 'utf8');
@@ -93,6 +93,7 @@ test('all workflow checkouts disable credential persistence and runners are fixe
     '.github/workflows/self-dogfood.yml',
     '.github/workflows/release-candidate.yml',
     'examples/github/assurance.yml',
+    'examples/github/shadow-provider.yml',
   ]) {
     const workflow = await readFile(path.join(root, relative), 'utf8');
     assert.doesNotMatch(workflow, /ubuntu-latest/);
@@ -113,10 +114,15 @@ test('all workflow checkouts disable credential persistence and runners are fixe
   assert.doesNotMatch(example, /candidate\/\.assurance\/(?:manifest|verifier-receipt|authorization)/);
   assert.doesNotMatch(example, /evidence-root: candidate(?:\s|$)/);
 
-  const remoteSmoke = await readFile(path.join(root, '.github/workflows/remote-action-smoke.yml'), 'utf8');
-  const remotePins = [...remoteSmoke.matchAll(/SprintLoop-Assurance-Kit(?:\/materialize-bundle)?@([0-9a-f]{40})/g)]
+  const shadowExample = await readFile(path.join(root, 'examples/github/shadow-provider.yml'), 'utf8');
+  const shadowPins = [...shadowExample.matchAll(/SprintLoop-Assurance-Kit\/prepare-shadow-bundle@([0-9a-f]{40})/g)]
     .map((match) => match[1]);
-  assert.deepEqual(remotePins, [ACTION_REVISION, ACTION_REVISION]);
+  assert.deepEqual(shadowPins, [ACTION_REVISION]);
+
+  const remoteSmoke = await readFile(path.join(root, '.github/workflows/remote-action-smoke.yml'), 'utf8');
+  const remotePins = [...remoteSmoke.matchAll(/SprintLoop-Assurance-Kit(?:\/(?:materialize-bundle|prepare-shadow-bundle))?@([0-9a-f]{40})/g)]
+    .map((match) => match[1]);
+  assert.deepEqual(remotePins, [ACTION_REVISION, ACTION_REVISION, ACTION_REVISION]);
   assert.match(remoteSmoke, /runner\.temp.*assurance-provider-inbox/);
   assert.match(remoteSmoke, /runner\.temp.*assurance-bundle/);
 });

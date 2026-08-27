@@ -1,5 +1,5 @@
-# Installation template: replace REPLACE_WITH_FULL_REVIEWED_SHA with the exact
-# immutable SprintLoop Assurance Kit revision that contains prepare-shadow-bundle.
+# All SprintLoop actions are pinned to the reviewed immutable implementation
+# revision. Upgrade only by reviewing and replacing the complete SHA.
 # This workflow is intentionally manual, advisory, no-secret, and never a gate.
 name: assurance-shadow-observe-only-NOT-A-GATE
 
@@ -79,7 +79,7 @@ jobs:
 
       - name: Prepare partial shadow evidence — always HOLD
         id: shadow
-        uses: SamSnead85/SprintLoop-Assurance-Kit/prepare-shadow-bundle@REPLACE_WITH_FULL_REVIEWED_SHA
+        uses: SamSnead85/SprintLoop-Assurance-Kit/prepare-shadow-bundle@7dfb1e417256f08a7b5e149093cc4d4c5987ea5e
         with:
           candidate-root: candidate
           candidate: ${{ steps.candidate.outputs.sha }}
