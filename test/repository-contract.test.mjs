@@ -6,6 +6,11 @@ import test from 'node:test';
 const root = path.resolve(import.meta.dirname, '..');
 const ACTION_REVISION = '0d3f6f0a27f7244d0ec0eb6d924df191b6180a0a';
 
+test('repository text is checked out with deterministic LF line endings', async () => {
+  const attributes = await readFile(path.join(root, '.gitattributes'), 'utf8');
+  assert.equal(attributes, '* text=auto eol=lf\n');
+});
+
 test('composite Action requires the complete protected receiver context', async () => {
   const action = await readFile(path.join(root, 'action.yml'), 'utf8');
   for (const input of [
