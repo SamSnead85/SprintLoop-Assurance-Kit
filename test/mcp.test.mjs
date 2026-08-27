@@ -382,11 +382,14 @@ test('receiver trust input accepts one bounded public-key PEM block only', () =>
   assert.ok(validateTrustStore(trust).some((entry) => entry.includes('publicKeyPem')));
 });
 
-test('copyable MCP registrations use the forthcoming source-pinned entrypoint', async () => {
-  const [codex, claude, cursor] = await Promise.all([
+test('copyable MCP registrations and install guides use the reviewed source-pinned entrypoint', async () => {
+  const [codex, claude, cursor, readme, guide, examples] = await Promise.all([
     readFile(path.join(kitRoot, 'examples/mcp/codex-command.txt'), 'utf8'),
     readJson(path.join(kitRoot, 'examples/mcp/claude-code.mcp.json')),
     readJson(path.join(kitRoot, 'examples/mcp/cursor.mcp.json')),
+    readFile(path.join(kitRoot, 'README.md'), 'utf8'),
+    readFile(path.join(kitRoot, 'docs/MCP.md'), 'utf8'),
+    readFile(path.join(kitRoot, 'examples/mcp/README.md'), 'utf8'),
   ]);
   assert.match(codex, /-- node \/absolute\/pinned\/SprintLoop-Assurance-Kit\/bin\/sprintloop-assure\.mjs mcp --config \/absolute\/path\/assurance-mcp\.json/);
   for (const configuration of [claude, cursor]) {
@@ -399,6 +402,11 @@ test('copyable MCP registrations use the forthcoming source-pinned entrypoint', 
       '/absolute/path/assurance-mcp.json',
     ]);
   }
+  for (const documentation of [readme, guide, examples]) {
+    assert.match(documentation, /35febce58e85ceec126ee6ce940461a25cfbe93e/);
+    assert.doesNotMatch(documentation, /FULL_40_CHARACTER_REVIEWED_COMMIT_SHA/);
+  }
+  assert.match(readme, /set -euo pipefail[\s\S]*checkout --detach 35febce58e85ceec126ee6ce940461a25cfbe93e/);
 });
 
 test('MCP startup failures use stderr only and never fall through to the authority-capable CLI', async () => {

@@ -46,7 +46,9 @@ It complements SLSA, in-toto, Sigstore, artifact attestations, test systems, and
 Prerequisite: Node.js 20.11 or newer and earlier than Node.js 25.
 
 ```bash
-git clone https://github.com/SamSnead85/SprintLoop-Assurance-Kit.git
+set -euo pipefail
+git clone https://github.com/SamSnead85/SprintLoop-Assurance-Kit.git SprintLoop-Assurance-Kit
+git -C SprintLoop-Assurance-Kit checkout --detach 35febce58e85ceec126ee6ce940461a25cfbe93e
 cd SprintLoop-Assurance-Kit
 npm ci --ignore-scripts
 npm test
@@ -108,11 +110,12 @@ The action requires only `contents: read`; it does not write checks, deployments
 
 ## Connect an AI engineering client
 
-The Kit includes a local, dependency-free stdio MCP server for Codex, Claude Code, Cursor, and compatible engineering clients. It exposes six fixed read-only tools for capabilities, policy requirements, manifest validation, external-bundle evaluation, dossier verification, and reason-code explanation. Until an audited `0.2.x` artifact is released, run it only from an exact reviewed source checkout and pin the full commit SHA.
+The Kit includes a local, dependency-free stdio MCP server for Codex, Claude Code, Cursor, and compatible engineering clients. It exposes six fixed read-only tools for capabilities, policy requirements, manifest validation, external-bundle evaluation, dossier verification, and reason-code explanation. The GitHub-only v0.2.0 distribution uses the exact reviewed source revision below; no npm package is published.
 
 ```bash
+set -euo pipefail
 git clone https://github.com/SamSnead85/SprintLoop-Assurance-Kit.git /absolute/pinned/SprintLoop-Assurance-Kit
-git -C /absolute/pinned/SprintLoop-Assurance-Kit checkout --detach FULL_40_CHARACTER_REVIEWED_COMMIT_SHA
+git -C /absolute/pinned/SprintLoop-Assurance-Kit checkout --detach 35febce58e85ceec126ee6ce940461a25cfbe93e
 codex mcp add sprintloop-assurance -- node /absolute/pinned/SprintLoop-Assurance-Kit/bin/sprintloop-assure.mjs mcp --config /absolute/path/assurance-mcp.json
 ```
 
@@ -205,7 +208,7 @@ A custom model should be considered only after real pilot data demonstrates a re
 
 ## Status and safety boundary
 
-Version `0.2.x` is a pre-1.0 integration kit suitable for evaluation and controlled shadow pilots. It is not a hosted identity system, key-management service, deployment engine, compliance certification, or legal determination. Before enforcement, an operator must supply authenticated identities, independently governed signing keys, a protected trust store, repository rules, key rotation and revocation, time synchronization, retention controls, and recovery procedures.
+Version `0.2.0` is a pre-1.0 integration kit suitable for evaluation and controlled shadow pilots. It is not a hosted identity system, key-management service, deployment engine, compliance certification, or legal determination. Before enforcement, an operator must supply authenticated identities, independently governed signing keys, a protected trust store, repository rules, key rotation and revocation, time synchronization, retention controls, and recovery procedures.
 
 No npm package is published or authorized. `package.json` is `private:true`; the npm-format tarball exists only to test GitHub source-artifact installation. Use the pinned GitHub Action or clone an exact reviewed source commit.
 

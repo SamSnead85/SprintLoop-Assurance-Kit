@@ -95,11 +95,12 @@ The bundle remains external to the Git candidate it names. MCP does not fetch or
 The GitHub-only distribution is not published to npm. Clone the repository to a controlled absolute path, review it, and detach at the complete reviewed commit SHA before registering the server:
 
 ```bash
+set -euo pipefail
 git clone https://github.com/SamSnead85/SprintLoop-Assurance-Kit.git /absolute/pinned/SprintLoop-Assurance-Kit
-git -C /absolute/pinned/SprintLoop-Assurance-Kit checkout --detach FULL_40_CHARACTER_REVIEWED_COMMIT_SHA
+git -C /absolute/pinned/SprintLoop-Assurance-Kit checkout --detach 35febce58e85ceec126ee6ce940461a25cfbe93e
 ```
 
-Do not use a branch, mutable tag, or global binary for the forthcoming `0.2.x` MCP surface. The shorter global command is reserved for a future audited package release.
+Do not use a branch, mutable tag, or global binary for the v0.2.0 MCP surface. The shorter global command is reserved for a future audited package release.
 
 Codex CLI:
 
