@@ -64,3 +64,20 @@ test('portable path length uses Unicode code points like JSON Schema', () => {
     assert.equal(validateJsonSchema(manifestSchema, manifest).length === 0, expected);
   }
 });
+
+test('manifest evidence rejects case and Unicode normalization aliases', () => {
+  const caseManifest = structuredClone(createExampleBundle().manifest);
+  caseManifest.evidence.push({
+    ...caseManifest.evidence[0],
+    id: 'case-alias',
+    path: 'Evidence/Test-Report.JSON',
+  });
+  assert.ok(validateManifest(caseManifest).some((entry) => entry.includes('portable-alias unique')));
+
+  const unicodeManifest = structuredClone(createExampleBundle().manifest);
+  unicodeManifest.evidence = [
+    { ...unicodeManifest.evidence[0], id: 'unicode-one', path: 'reports/caf\u00e9.sarif' },
+    { ...unicodeManifest.evidence[0], id: 'unicode-two', path: 'reports/cafe\u0301.sarif' },
+  ];
+  assert.ok(validateManifest(unicodeManifest).some((entry) => entry.includes('portable-alias unique')));
+});

@@ -1,4 +1,4 @@
-import { isPortableRelativePath } from './portable-path.mjs';
+import { isPortableRelativePath, portablePathAliasKey } from './portable-path.mjs';
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const SUBJECT = /^git:(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$/;
@@ -84,6 +84,7 @@ export function validateManifest(value) {
   if (!Array.isArray(value.evidence) || value.evidence.length === 0) errors.push('evidence');
   else {
     const ids = [];
+    const paths = [];
     for (const [index, item] of value.evidence.entries()) {
       if (!object(item)) {
         errors.push(`evidence[${index}]`);
@@ -91,6 +92,7 @@ export function validateManifest(value) {
       }
       exactKeys(item, ['id', 'type', 'path', 'mediaType', 'digest', 'subjectDigest'], `evidence[${index}]`, errors);
       ids.push(item.id);
+      paths.push(item.path);
       if (!id(item.id)) errors.push(`evidence[${index}].id`);
       if (!id(item.type)) errors.push(`evidence[${index}].type`);
       if (!relativePath(item.path)) errors.push(`evidence[${index}].path`);
@@ -99,6 +101,9 @@ export function validateManifest(value) {
       if (!mediaType(item.mediaType)) errors.push(`evidence[${index}].mediaType`);
     }
     if (!unique(ids)) errors.push('evidence ids must be unique');
+    if (!unique(paths) || !unique(paths.filter((entry) => relativePath(entry)).map((entry) => portablePathAliasKey(entry)))) {
+      errors.push('evidence paths must be portable-alias unique');
+    }
   }
   return errors;
 }

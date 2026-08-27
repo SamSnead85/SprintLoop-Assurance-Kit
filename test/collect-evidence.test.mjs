@@ -218,6 +218,14 @@ test('rejects traversal, platform aliases, duplicate ids, and duplicate paths', 
       { id: 'one', path: 'scan.sarif' },
       { id: 'two', path: 'scan.sarif' },
     ], { root }), 'EDUPLICATE');
+    await rejectsCode(() => collectEvidence([
+      { id: 'case-one', path: 'Report.sarif' },
+      { id: 'case-two', path: 'report.sarif' },
+    ], { root }), 'EDUPLICATE');
+    await rejectsCode(() => collectEvidence([
+      { id: 'unicode-one', path: 'caf\u00e9.sarif' },
+      { id: 'unicode-two', path: 'cafe\u0301.sarif' },
+    ], { root }), 'EDUPLICATE');
   });
 });
 

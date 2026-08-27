@@ -1,6 +1,9 @@
 const MAX_DEPTH = 64;
 const MAX_ERRORS = 128;
 
+// Internal validator for the closed schema subset shipped by the Kit and its
+// MCP catalog. It is deliberately not exported from the package root as a
+// general JSON Schema implementation.
 export function validateJsonSchema(schema, value) {
   const errors = [];
   visit(schema, value, '$', errors, 0, schema);
@@ -25,12 +28,14 @@ function visit(schema, value, path, errors, depth, rootSchema) {
       return;
     }
     visit(referenced, value, path, errors, depth + 1, rootSchema);
-    return;
   }
   if (Array.isArray(schema.anyOf)) {
     const matches = schema.anyOf.some((branch) => validateBranch(branch, value, depth + 1, rootSchema));
     if (!matches) errors.push(`${path}: does not match any allowed schema`);
-    return;
+  }
+  if (Array.isArray(schema.oneOf)) {
+    const matches = schema.oneOf.filter((branch) => validateBranch(branch, value, depth + 1, rootSchema)).length;
+    if (matches !== 1) errors.push(`${path}: does not match exactly one allowed schema`);
   }
   if (Object.hasOwn(schema, 'const') && !sameJson(value, schema.const)) {
     errors.push(`${path}: does not match const`);
@@ -84,6 +89,9 @@ function validateArray(schema, value, path, errors, depth, rootSchema) {
 
 function validateObject(schema, value, path, errors, depth, rootSchema) {
   const properties = isObject(schema.properties) ? schema.properties : {};
+  const propertyCount = Object.keys(value).length;
+  if (Number.isSafeInteger(schema.minProperties) && propertyCount < schema.minProperties) errors.push(`${path}: has too few properties`);
+  if (Number.isSafeInteger(schema.maxProperties) && propertyCount > schema.maxProperties) errors.push(`${path}: has too many properties`);
   if (Array.isArray(schema.required)) {
     for (const key of schema.required) if (!Object.hasOwn(value, key)) errors.push(`${path}.${key}: is required`);
   }

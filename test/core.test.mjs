@@ -7,6 +7,7 @@ import { canonicalize, documentDigest } from '../src/canonical.mjs';
 import { createDossier, verifyDossier } from '../src/dossier.mjs';
 import { evaluateAssurance } from '../src/evaluate.mjs';
 import { createExampleBundle, writeExampleBundle } from '../src/example.mjs';
+import { validateJsonSchema } from '../src/schema-check.mjs';
 
 const NOW = new Date('2030-01-01T12:00:00.000Z');
 
@@ -24,6 +25,25 @@ test('canonical JSON preserves prototype-named keys without digest collisions', 
   );
   assert.notEqual(documentDigest(hostile), documentDigest({ x: 1 }));
   assert.equal(Object.prototype.polluted, undefined);
+});
+
+test('canonical JSON rejects sparse arrays instead of aliasing them to null', () => {
+  assert.throws(() => canonicalize(Array(1)), /dense|sparse/);
+  const withExtra = [null];
+  withExtra.extra = true;
+  assert.throws(() => canonicalize(withExtra), /extra enumerable/);
+  assert.equal(canonicalize([null]), '[null]');
+});
+
+test('internal schema validation enforces oneOf, property bounds, and ref siblings', () => {
+  assert.ok(validateJsonSchema({ oneOf: [{ type: 'string' }, { type: 'null' }] }, 42).length > 0);
+  assert.ok(validateJsonSchema({ type: 'object', maxProperties: 0 }, { x: 1 }).length > 0);
+  assert.ok(validateJsonSchema({
+    $defs: { text: { type: 'string' } },
+    $ref: '#/$defs/text',
+    minLength: 3,
+  }, 'x').length > 0);
+  assert.ok(validateJsonSchema({ oneOf: [{ type: 'number' }, { type: 'integer' }] }, 1).length > 0);
 });
 
 test('golden path creates a PASS dossier and verifies it offline', async () => {

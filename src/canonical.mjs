@@ -25,7 +25,15 @@ function normalize(value) {
   }
 
   if (Array.isArray(value)) {
-    return value.map((entry) => normalize(entry));
+    if (Object.keys(value).length !== value.length) {
+      throw new TypeError('Canonical arrays must be dense and contain no extra enumerable properties');
+    }
+    const result = [];
+    for (let index = 0; index < value.length; index += 1) {
+      if (!Object.hasOwn(value, index)) throw new TypeError('Canonical arrays must not contain sparse indexes');
+      result.push(normalize(value[index]));
+    }
+    return result;
   }
 
   if (typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {

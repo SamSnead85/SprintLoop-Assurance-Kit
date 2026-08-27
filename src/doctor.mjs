@@ -215,8 +215,8 @@ function normalizeOptions(input) {
   };
 }
 
-function nodeVersionCheck() {
-  const parsed = parseVersion(process.version, /^v(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.-]+)?$/);
+export function nodeVersionCheck(runtimeVersion = process.version) {
+  const parsed = parseVersion(runtimeVersion, /^v(\d+)\.(\d+)\.(\d+)$/);
   const data = { version: parsed ? versionText(parsed) : null, required: '>=22.23.2 <23.0.0 || >=24.20.0 <25.0.0' };
   if (!parsed) return check('runtime.node', 'error', 'NODE_VERSION_UNRECOGNIZED', 'Node runtime version could not be recognized.', data);
   const supported = (parsed[0] === 22 && compareVersions(parsed, MINIMUM_NODE_22) >= 0)

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { readHandleBounded } from './bounded.mjs';
 import { sha256 } from './canonical.mjs';
 import { parseJsonStrictText, parseJsonStrictTextMeasured } from './strict-json.mjs';
-import { isPortableRelativePath } from './portable-path.mjs';
+import { isPortableRelativePath, portablePathAliasKey } from './portable-path.mjs';
 
 const DEFAULT_MAX_FILES = 32;
 const DEFAULT_MAX_FILE_BYTES = 16 * 1024 * 1024;
@@ -116,6 +116,7 @@ export function toManifestEvidence(collection, subjectDigest) {
   }
   const ids = new Set();
   const paths = new Set();
+  const pathAliases = new Set();
   return collection.evidence.map((entry) => {
     if (!isPlainObject(entry) || !ID_PATTERN.test(entry.id ?? '') || !ID_PATTERN.test(entry.type ?? '')
       || !isPortableRelativePath(entry.path) || !MEDIA_TYPE_PATTERN.test(entry.mediaType ?? '')
@@ -124,9 +125,13 @@ export function toManifestEvidence(collection, subjectDigest) {
     }
     const projectedPath = collection.pathBase === '.' ? entry.path : `${collection.pathBase}/${entry.path}`;
     if (!isPortableRelativePath(projectedPath)) fail('EPATH', 'Composed manifest evidence path is invalid');
-    if (ids.has(entry.id) || paths.has(projectedPath)) fail('EDUPLICATE', 'Manifest evidence projection is ambiguous');
+    const pathAlias = portablePathAliasKey(projectedPath);
+    if (ids.has(entry.id) || paths.has(projectedPath) || pathAliases.has(pathAlias)) {
+      fail('EDUPLICATE', 'Manifest evidence projection is ambiguous');
+    }
     ids.add(entry.id);
     paths.add(projectedPath);
+    pathAliases.add(pathAlias);
     return {
       id: entry.id,
       type: entry.type,
@@ -231,11 +236,16 @@ function normalizeInput(input) {
 function rejectDescriptorDuplicates(descriptors) {
   const ids = new Set();
   const paths = new Set();
+  const pathAliases = new Set();
   for (const descriptor of descriptors) {
+    const pathAlias = portablePathAliasKey(descriptor.path);
     if (ids.has(descriptor.id)) fail('EDUPLICATE', `Evidence input id ${descriptor.id} is duplicated`);
-    if (paths.has(descriptor.path)) fail('EDUPLICATE', `Evidence input path for ${descriptor.id} is duplicated`);
+    if (paths.has(descriptor.path) || pathAliases.has(pathAlias)) {
+      fail('EDUPLICATE', `Evidence input path for ${descriptor.id} is duplicated or aliases another portable path`);
+    }
     ids.add(descriptor.id);
     paths.add(descriptor.path);
+    pathAliases.add(pathAlias);
   }
 }
 

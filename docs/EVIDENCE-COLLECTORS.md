@@ -181,7 +181,7 @@ The collector rejects:
 - invalid UTF-8, malformed JSON, non-finite JSON numbers, lone Unicode surrogates, and duplicate JSON object keys;
 - XML DTDs, entity declarations, custom entities, malformed nesting, duplicate attributes, and invalid JUnit element placement;
 - format mismatch, unknown identity, or a JSON document advertising more than one supported identity;
-- duplicate descriptor IDs, paths, open-file identities, SPDX identifiers, CycloneDX references/dependency nodes, and in-toto subject digests; and
+- duplicate descriptor IDs, paths, case-folded/Unicode-normalized path aliases, open-file identities, SPDX identifiers, CycloneDX references/dependency nodes, and in-toto subject digests; and
 - ambiguous Sigstore key material/content and DSSE envelopes whose signature count is not exactly one.
 
 The open handle is checked before and after the bounded read, and the path is checked again against the handle identity and canonical root. As with any user-space collector, run it in an isolated CI phase on a filesystem where an attacker cannot race parent-directory replacement at the kernel boundary.

@@ -15,3 +15,10 @@ export function isPortableRelativePath(value, { allowDot = false, maxLength = 10
   return value.split('/').every((segment) => segment !== '' && segment !== '.' && segment !== '..'
     && !/[. ]$/u.test(segment) && !WINDOWS_DEVICE.test(segment));
 }
+
+// A handoff alias key for case-insensitive and normalization-insensitive
+// filesystems. The original portable spelling remains the signed value.
+export function portablePathAliasKey(value) {
+  if (!isPortableRelativePath(value, { allowDot: true })) throw new TypeError('Portable path is invalid');
+  return value.normalize('NFC').toLowerCase();
+}

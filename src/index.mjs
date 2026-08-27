@@ -18,7 +18,6 @@ export {
   validateMcpConfig,
 } from './mcp-config.mjs';
 export { AssuranceMcpServer, runMcpStdioServer } from './mcp-server.mjs';
-export { validateJsonSchema } from './schema-check.mjs';
 export {
   diagnoseSetup,
   DOCTOR_EXIT_CODES,

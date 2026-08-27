@@ -23,6 +23,7 @@ import {
   doctorExitCode,
   formatDoctorHuman,
   formatDoctorJson,
+  nodeVersionCheck,
 } from '../src/doctor.mjs';
 import { createExampleBundle } from '../src/example.mjs';
 import { KIT_VERSION } from '../src/version.mjs';
@@ -40,6 +41,14 @@ const CHECK_IDS = [
   'trust.digest',
   'mcp.configuration',
 ];
+
+test('maintained Node checks reject prerelease and custom-suffixed runtimes', () => {
+  assert.equal(nodeVersionCheck('v22.23.2').code, 'NODE_SUPPORTED');
+  assert.equal(nodeVersionCheck('v24.20.0').code, 'NODE_SUPPORTED');
+  assert.equal(nodeVersionCheck('v24.20.1-nightly.20260827').code, 'NODE_VERSION_UNRECOGNIZED');
+  assert.equal(nodeVersionCheck('v22.23.2+custom').code, 'NODE_VERSION_UNRECOGNIZED');
+  assert.equal(nodeVersionCheck('v23.99.0').code, 'NODE_UNSUPPORTED');
+});
 
 test('fully pinned receiver and MCP roots produce a stable, path-free PASS result', async () => {
   await withFixture(async (fixture) => {
