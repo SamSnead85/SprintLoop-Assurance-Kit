@@ -1,11 +1,13 @@
-export async function readHandleBounded(handle, maxBytes) {
+export async function readHandleBounded(handle, maxBytes, { signal } = {}) {
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 0) throw new TypeError('maxBytes must be a non-negative safe integer');
   const chunks = [];
   let total = 0;
   while (true) {
+    signal?.throwIfAborted();
     const remainingWithSentinel = (maxBytes - total) + 1;
     const buffer = Buffer.allocUnsafe(Math.min(65_536, remainingWithSentinel));
     const { bytesRead } = await handle.read(buffer, 0, buffer.length, null);
+    signal?.throwIfAborted();
     if (bytesRead === 0) break;
     total += bytesRead;
     if (total > maxBytes) {

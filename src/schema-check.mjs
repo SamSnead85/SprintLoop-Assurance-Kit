@@ -3,11 +3,11 @@ const MAX_ERRORS = 128;
 
 export function validateJsonSchema(schema, value) {
   const errors = [];
-  visit(schema, value, '$', errors, 0);
+  visit(schema, value, '$', errors, 0, schema);
   return errors;
 }
 
-function visit(schema, value, path, errors, depth) {
+function visit(schema, value, path, errors, depth, rootSchema) {
   if (errors.length >= MAX_ERRORS) return;
   if (depth > MAX_DEPTH) {
     errors.push(`${path}: schema depth exceeds ${MAX_DEPTH}`);
@@ -18,8 +18,17 @@ function visit(schema, value, path, errors, depth) {
     errors.push(`${path}: invalid or rejecting schema`);
     return;
   }
+  if (typeof schema.$ref === 'string') {
+    const referenced = resolveLocalReference(rootSchema, schema.$ref);
+    if (referenced === undefined) {
+      errors.push(`${path}: schema reference is invalid or unsupported`);
+      return;
+    }
+    visit(referenced, value, path, errors, depth + 1, rootSchema);
+    return;
+  }
   if (Array.isArray(schema.anyOf)) {
-    const matches = schema.anyOf.some((branch) => validateBranch(branch, value, depth + 1));
+    const matches = schema.anyOf.some((branch) => validateBranch(branch, value, depth + 1, rootSchema));
     if (!matches) errors.push(`${path}: does not match any allowed schema`);
     return;
   }
@@ -37,13 +46,14 @@ function visit(schema, value, path, errors, depth) {
   }
   if (typeof value === 'string') validateString(schema, value, path, errors);
   if (typeof value === 'number') validateNumber(schema, value, path, errors);
-  if (Array.isArray(value)) validateArray(schema, value, path, errors, depth);
-  else if (isObject(value)) validateObject(schema, value, path, errors, depth);
+  if (Array.isArray(value)) validateArray(schema, value, path, errors, depth, rootSchema);
+  else if (isObject(value)) validateObject(schema, value, path, errors, depth, rootSchema);
 }
 
 function validateString(schema, value, path, errors) {
-  if (Number.isSafeInteger(schema.minLength) && value.length < schema.minLength) errors.push(`${path}: is shorter than minLength`);
-  if (Number.isSafeInteger(schema.maxLength) && value.length > schema.maxLength) errors.push(`${path}: is longer than maxLength`);
+  const characterLength = [...value].length;
+  if (Number.isSafeInteger(schema.minLength) && characterLength < schema.minLength) errors.push(`${path}: is shorter than minLength`);
+  if (Number.isSafeInteger(schema.maxLength) && characterLength > schema.maxLength) errors.push(`${path}: is longer than maxLength`);
   if (typeof schema.pattern === 'string') {
     let pattern;
     try {
@@ -62,32 +72,44 @@ function validateNumber(schema, value, path, errors) {
   if (typeof schema.maximum === 'number' && value > schema.maximum) errors.push(`${path}: is above maximum`);
 }
 
-function validateArray(schema, value, path, errors, depth) {
+function validateArray(schema, value, path, errors, depth, rootSchema) {
   if (Number.isSafeInteger(schema.minItems) && value.length < schema.minItems) errors.push(`${path}: has too few items`);
   if (Number.isSafeInteger(schema.maxItems) && value.length > schema.maxItems) errors.push(`${path}: has too many items`);
   if (schema.uniqueItems === true) {
     const encoded = value.map((entry) => JSON.stringify(entry));
     if (new Set(encoded).size !== encoded.length) errors.push(`${path}: items are not unique`);
   }
-  if (schema.items !== undefined) value.forEach((entry, index) => visit(schema.items, entry, `${path}[${index}]`, errors, depth + 1));
+  if (schema.items !== undefined) value.forEach((entry, index) => visit(schema.items, entry, `${path}[${index}]`, errors, depth + 1, rootSchema));
 }
 
-function validateObject(schema, value, path, errors, depth) {
+function validateObject(schema, value, path, errors, depth, rootSchema) {
   const properties = isObject(schema.properties) ? schema.properties : {};
   if (Array.isArray(schema.required)) {
     for (const key of schema.required) if (!Object.hasOwn(value, key)) errors.push(`${path}.${key}: is required`);
   }
   for (const [key, child] of Object.entries(value)) {
-    if (Object.hasOwn(properties, key)) visit(properties[key], child, `${path}.${key}`, errors, depth + 1);
+    if (Object.hasOwn(properties, key)) visit(properties[key], child, `${path}.${key}`, errors, depth + 1, rootSchema);
     else if (schema.additionalProperties === false) errors.push(`${path}: contains an unexpected property`);
-    else if (isObject(schema.additionalProperties)) visit(schema.additionalProperties, child, `${path}.${key}`, errors, depth + 1);
+    else if (isObject(schema.additionalProperties)) visit(schema.additionalProperties, child, `${path}.${key}`, errors, depth + 1, rootSchema);
   }
 }
 
-function validateBranch(schema, value, depth) {
+function validateBranch(schema, value, depth, rootSchema) {
   const errors = [];
-  visit(schema, value, '$', errors, depth);
+  visit(schema, value, '$', errors, depth, rootSchema);
   return errors.length === 0;
+}
+
+function resolveLocalReference(rootSchema, reference) {
+  if (reference === '#') return rootSchema;
+  if (!reference.startsWith('#/')) return undefined;
+  let current = rootSchema;
+  for (const rawSegment of reference.slice(2).split('/')) {
+    const segment = rawSegment.replaceAll('~1', '/').replaceAll('~0', '~');
+    if (!isObject(current) || !Object.hasOwn(current, segment)) return undefined;
+    current = current[segment];
+  }
+  return current;
 }
 
 function matchesType(value, expected) {

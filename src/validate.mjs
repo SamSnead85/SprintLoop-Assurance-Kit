@@ -1,3 +1,5 @@
+import { isPortableRelativePath } from './portable-path.mjs';
+
 const SHA256 = /^sha256:[0-9a-f]{64}$/;
 const SUBJECT = /^git:(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$/;
 const TREE = /^git-tree:(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$/;
@@ -25,10 +27,7 @@ function repository(value) {
 }
 
 function relativePath(value) {
-  if (typeof value !== 'string' || value.length < 1 || value.length > 1024 || CONTROL.test(value)
-    || value.startsWith('/') || value.includes('\\')) return false;
-  const segments = value.split('/');
-  return !segments.some((segment) => !segment || segment === '.' || segment === '..');
+  return isPortableRelativePath(value);
 }
 
 function mediaType(value) {

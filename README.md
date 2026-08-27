@@ -2,14 +2,17 @@
 
 [![CI](https://github.com/SamSnead85/SprintLoop-Assurance-Kit/actions/workflows/ci.yml/badge.svg)](https://github.com/SamSnead85/SprintLoop-Assurance-Kit/actions/workflows/ci.yml)
 ![License: MIT](https://img.shields.io/badge/license-MIT-6f5cff)
-![Node: 20.11–24](https://img.shields.io/badge/node-20.11%E2%80%9324-2f855a)
+![Node: maintained 22/24 LTS](https://img.shields.io/badge/node-maintained_22%2F24_LTS-2f855a)
+![Git observer: 2.45+](https://img.shields.io/badge/Git_observer-2.45%2B-374151)
 ![Runtime dependencies: zero](https://img.shields.io/badge/runtime_dependencies-zero-0f766e)
 
-**Proof before permission for agent-built software.**
+**Independent proof before permission for agent-built software.**
 
-An AI builder can plan, code, and self-test a change. SprintLoop Assurance Kit independently determines whether the **exact Git candidate** is eligible to release by binding deterministic evidence to a receiver-trusted verifier and a finite, named authorization. It emits `PASS`, `HOLD`, or `BLOCK` plus a portable dossier that can be verified offline.
+SprintLoop Assurance Kit is a model-neutral release-assurance control for the AI software development lifecycle. It sits between evidence-producing CI and the protected SCM/deployment gate, binding the **exact Git candidate**, receiver-owned policy and trust, an independent verifier receipt, and a finite named authorization into deterministic `PASS`, `HOLD`, or `BLOCK` plus an offline-verifiable dossier.
 
-This is the open protocol, CLI, library, and GitHub Action for that boundary. It is model-neutral, has no runtime dependencies, makes no network calls, and never treats an AI opinion as release authority.
+The open-source Kit is the inspectable adoption layer: protocol, schemas, CLI, library, GitHub Action, CI evidence collectors, setup doctor, conformance fixtures, and local read-only MCP tools. Its evaluation, doctor, collector, materializer, shadow, and local MCP runtime paths have no third-party runtime dependencies and make no network calls when run with Git 2.45 or newer; release tooling and an operator-supplied provider are separate boundaries. The Kit never treats an AI opinion, agent identity claim, or transport/provider assertion as release authority.
+
+The latest public prerelease is **v0.2.0**. The repository's **v0.3.0 development line is not released yet**; it adds the doctor, standard evidence collectors, strict CLI/version contracts, and a seventh MCP tool. Use v0.2.0 for the published no-clone evaluation below, and do not treat a branch or working tree as an immutable v0.3 security pin.
 
 ## Where it fits
 
@@ -41,9 +44,34 @@ Builder or coding agent ── self-QA ──→ deterministic evidence
 
 It complements SLSA, in-toto, Sigstore, artifact attestations, test systems, and policy engines. Those systems produce or verify facts. Assurance Kit binds facts, independent standing, and accountable permission to one exact candidate.
 
-## Ten-minute golden path
+## Evaluate it in under a minute
 
-Prerequisite: Node.js 20.11 or newer and earlier than Node.js 25.
+Prerequisites: a maintained Node.js 22 LTS runtime at 22.23.2 or newer, or Node.js 24 LTS at 24.20.0 or newer. Git-backed observation also requires Git 2.45 or newer; the self-contained demo below does not inspect Git. This runs the published v0.2.0 GitHub artifact without cloning the repository or installing a global binary:
+
+```bash
+npm exec --yes \
+  --package=https://github.com/SamSnead85/SprintLoop-Assurance-Kit/releases/download/v0.2.0/sprintloop-assurance-kit-0.2.0.tgz \
+  -- sprintloop-assure demo --out artifacts/assurance-demo
+```
+
+The expected decision is `PASS`. The demo creates two ephemeral Ed25519 keypairs in memory, discards the private keys, and writes public inputs plus deterministic evidence under `artifacts/assurance-demo`. It proves the local protocol loop; it is not evidence about your repository and does not establish production readiness.
+
+For a checksum-first evaluation, verify the artifact **before** executing it:
+
+```bash
+set -euo pipefail
+mkdir sprintloop-assurance-eval && cd sprintloop-assurance-eval
+curl -fLO https://github.com/SamSnead85/SprintLoop-Assurance-Kit/releases/download/v0.2.0/SHA256SUMS
+curl -fLO https://github.com/SamSnead85/SprintLoop-Assurance-Kit/releases/download/v0.2.0/sprintloop-assurance-kit-0.2.0.tgz
+grep ' sprintloop-assurance-kit-0.2.0.tgz$' SHA256SUMS > sprintloop-assurance-kit.sha256
+shasum -a 256 -c sprintloop-assurance-kit.sha256
+npm exec --yes --package="file:$PWD/sprintloop-assurance-kit-0.2.0.tgz" -- \
+  sprintloop-assure demo --out artifacts/assurance-demo
+```
+
+The published v0.2.0 tarball digest is `sha256:a2c14d9e618b689e9358611637783f087798b38f9fd6a54bd0b1da4e591840f2`, generated from release/tag source `378a6cd7156c03dce1aca8774fa066f902f10396`. Confirm it against the release's `SHA256SUMS`, not this README alone. Fetching the artifact and checksum from the same GitHub release detects mismatch with the recorded bytes; it is not an independent publisher-signature or transparency proof.
+
+To inspect and test the v0.2 code path instead, detach at its reviewed source/pin revision:
 
 ```bash
 set -euo pipefail
@@ -54,8 +82,6 @@ npm ci --ignore-scripts
 npm test
 npm run demo
 ```
-
-The demo creates two ephemeral Ed25519 keypairs in memory, discards the private keys, writes public inputs and deterministic evidence under `artifacts/demo`, and produces a `PASS` dossier.
 
 Verify the result without a network or model:
 
@@ -85,6 +111,44 @@ Recorded: PASS
 Current: PASS
 ```
 
+## Put the v0.3 development workflow against your repository
+
+The useful handoff is a sequence, not a chatbot opinion:
+
+```text
+doctor exact tracked receiver checkout
+  -> collect and raw-byte-hash standard CI evidence
+  -> inspect requirements / evidence / decisions through local read-only MCP
+  -> hand an external exact-candidate bundle to an independently governed verifier
+  -> require finite authorization in receiver-governed CI or deployment controls
+```
+
+The v0.3 source line exposes the first three steps locally. For a repository that already tracks `.assurance/policy.json` and `.assurance/trust.json`, run the doctor with explicit receiver-controlled pins:
+
+```bash
+node /absolute/reviewed/kit/bin/sprintloop-assure.mjs doctor \
+  --root /absolute/service \
+  --expected-head 0123456789abcdef0123456789abcdef01234567 \
+  --expected-tree 89abcdef0123456789abcdef0123456789abcdef \
+  --expected-policy-digest sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+  --expected-trust-digest sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+  --json
+```
+
+Replace every illustrative value with an observation or pin from outside the candidate. Deriving the expected digest from the same untrusted checkout inside an enforcement job defeats the binding. Omitting expected values is useful for diagnosis but intentionally returns warning exit `10`, never enforcement readiness. Exact Git observation requires Git 2.45 or newer. See the [setup doctor contract](docs/DOCTOR.md).
+
+After test, scan, SBOM, provenance, and signature producers have exited, describe their immutable handoff files in a JSON array and collect bounded metadata:
+
+```bash
+node /absolute/reviewed/kit/bin/sprintloop-assure.mjs collect-evidence \
+  --input /absolute/receiver/evidence-inputs.json \
+  --root /absolute/receiver/handoff \
+  --path-base evidence \
+  --subject-digest git:sha1:<receiver-observed-40-hex-commit> > evidence-collection.json
+```
+
+Descriptor paths are portable relative paths under `--root`. `--path-base` records their bundle namespace without exposing a host path, and an explicit receiver-observed `--subject-digest` adds a deterministic `manifestEvidence` projection ready for the existing evaluator. The MCP collector returns its selected bundle-relative `evidenceRoot` as `pathBase` but deliberately cannot provide the receiver subject or create release authority. Collection establishes exact bytes and supported structure, not truth, signature validity, policy satisfaction, or release eligibility. See [deterministic CI evidence collectors](docs/EVIDENCE-COLLECTORS.md).
+
 ## Use it in GitHub Actions
 
 Choose the integration lane that matches the controls you actually operate:
@@ -110,7 +174,9 @@ The action requires only `contents: read`; it does not write checks, deployments
 
 ## Connect an AI engineering client
 
-The Kit includes a local, dependency-free stdio MCP server for Codex, Claude Code, Cursor, and compatible engineering clients. It exposes six fixed read-only tools for capabilities, policy requirements, manifest validation, external-bundle evaluation, dossier verification, and reason-code explanation. The GitHub-only v0.2.0 distribution uses the exact reviewed source revision below; no npm package is published.
+The Kit includes a local, dependency-free stdio MCP server for Codex, Claude Code, Cursor, and compatible engineering clients. The v0.3 development source exposes seven fixed read-only tools: capabilities, standard evidence collection, policy requirements, manifest validation, external-bundle evaluation, dossier verification, and reason-code explanation. It gives an engineer a local inspection interface to the same deterministic contracts; it does not give the client, model, or MCP server authority to release.
+
+The latest published v0.2.0 MCP surface has six tools and does not include `assurance_collect_evidence`. Its GitHub-only distribution uses the exact reviewed source revision below; no npm package is published:
 
 ```bash
 set -euo pipefail
@@ -150,6 +216,9 @@ Model metadata is descriptive only. It never creates identity, independence, tru
 ## CLI
 
 ```text
+sprintloop-assure version [--json]
+sprintloop-assure doctor [--root DIR] [--policy FILE] [--trust FILE] [immutable expectations] [--json]
+sprintloop-assure collect-evidence --input JSON_FILE [--root DIR] [bounds]
 sprintloop-assure init [--directory DIR]
 sprintloop-assure demo [--out DIR]
 sprintloop-assure mcp --config ABSOLUTE_FILE
@@ -208,7 +277,7 @@ A custom model should be considered only after real pilot data demonstrates a re
 
 ## Status and safety boundary
 
-Version `0.2.0` is a pre-1.0 integration kit suitable for evaluation and controlled shadow pilots. It is not a hosted identity system, key-management service, deployment engine, compliance certification, or legal determination. Before enforcement, an operator must supply authenticated identities, independently governed signing keys, a protected trust store, repository rules, key rotation and revocation, time synchronization, retention controls, and recovery procedures.
+Version `0.2.0` is the latest public pre-1.0 integration kit and is suitable for evaluation and controlled shadow pilots. Version `0.3.0` is under development and is not yet a published or approved release. Neither line is a hosted identity system, key-management service, deployment engine, compliance certification, or legal determination. Before enforcement, an operator must supply authenticated identities, independently governed signing keys, a protected trust store, repository rules, key rotation and revocation, time synchronization, retention controls, and recovery procedures.
 
 No npm package is published or authorized. `package.json` is `private:true`; the npm-format tarball exists only to test GitHub source-artifact installation. Use the pinned GitHub Action or clone an exact reviewed source commit.
 
@@ -229,6 +298,8 @@ See [commercial boundary](docs/COMMERCIAL-BOUNDARY.md) and [AISDLC placement](do
 
 ## Security and contribution
 
-Read [SECURITY.md](SECURITY.md) before reporting a vulnerability. Contributions follow [CONTRIBUTING.md](CONTRIBUTING.md), [GOVERNANCE.md](GOVERNANCE.md), and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+Read [SECURITY.md](SECURITY.md) before reporting a vulnerability. Contributions follow [CONTRIBUTING.md](CONTRIBUTING.md), [GOVERNANCE.md](GOVERNANCE.md), and [CODE_OF_CONDUCT.md). Project direction, compatibility intent, maintainer scope, and support channels are public in [ROADMAP.md](ROADMAP.md), [MAINTAINERS.md](MAINTAINERS.md), and [SUPPORT.md](SUPPORT.md).
+
+Adoption is measured through reproducible runs, real-repository diagnostics, integrations, field reports, and independently useful contributions. The project does not buy stars, automate engagement, exchange stars, manufacture field reports, or use undisclosed promotion.
 
 MIT © 2026 LockedIn Labs contributors.

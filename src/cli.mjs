@@ -8,6 +8,13 @@ import { fileURLToPath } from 'node:url';
 import { documentDigest, sha256 } from './canonical.mjs';
 import { signDocument } from './crypto.mjs';
 import { createDossier, verifyDossier } from './dossier.mjs';
+import { collectEvidence, EvidenceCollectionError } from './collect-evidence.mjs';
+import {
+  diagnoseSetup,
+  doctorExitCode,
+  formatDoctorHuman,
+  formatDoctorJson,
+} from './doctor.mjs';
 import { createExampleBundle, writeExampleBundle } from './example.mjs';
 import { inspectGitState as inspectReceiverGitState } from './git-state.mjs';
 import {
@@ -18,6 +25,7 @@ import {
   writeJsonAtomic,
   writeTextExclusive,
 } from './io.mjs';
+import { KIT_VERSION } from './version.mjs';
 
 const EXIT = { PASS: 0, HOLD: 10, BLOCK: 20, ERROR: 2 };
 
@@ -25,18 +33,89 @@ export async function run(argv = process.argv.slice(2), environment = process.en
   const [command = 'help', ...rest] = argv;
   const options = parseOptions(rest);
 
-  if (command === 'help' || options.help) {
+  if (command === 'help' || command === '--help' || command === '-h') {
+    if (rest.length > 0) throw new UsageError('Help does not accept arguments');
     process.stdout.write(MCP_HELP);
+    return 0;
+  }
+  if (rest.length === 1 && rest[0] === '-h') {
+    process.stdout.write(MCP_HELP);
+    return 0;
+  }
+  if (options.help !== undefined) {
+    booleanFlag(options, 'help');
+    assertOptions(options, ['help']);
+    process.stdout.write(MCP_HELP);
+    return 0;
+  }
+  if (command === 'version' || command === '--version' || command === '-V') {
+    assertOptions(options, ['json']);
+    const json = booleanFlag(options, 'json');
+    process.stdout.write(json
+      ? `${JSON.stringify({ name: '@sprintloop/assurance-kit', version: KIT_VERSION })}\n`
+      : `SprintLoop Assurance Kit ${KIT_VERSION}\n`);
     return 0;
   }
   if (command === 'digest') return digestCommand(options);
   if (command === 'document-digest') return documentDigestCommand(options);
+  if (command === 'doctor') return doctorCommand(options);
+  if (command === 'collect-evidence') return collectEvidenceCommand(options);
   if (command === 'init') return initCommand(options);
   if (command === 'demo') return demoCommand(options);
   if (command === 'sign-receipt' || command === 'sign-authorization') return signCommand(command, options);
   if (command === 'check') return checkCommand(options, environment);
   if (command === 'verify-dossier') return verifyDossierCommand(options);
   throw new UsageError(`Unknown command: ${command}`);
+}
+
+async function doctorCommand(options) {
+  assertOptions(options, [
+    'root', 'policy', 'trust', 'expected_head', 'expected_tree', 'expected_policy_digest',
+    'expected_trust_digest', 'mcp_config', 'timeout_ms', 'max_document_bytes', 'json',
+  ]);
+  const json = booleanFlag(options, 'json');
+  const result = await diagnoseSetup({
+    root: optionalText(options, 'root'),
+    policyPath: optionalText(options, 'policy'),
+    trustPath: optionalText(options, 'trust'),
+    expectedHead: optionalText(options, 'expected_head'),
+    expectedTree: optionalText(options, 'expected_tree'),
+    expectedPolicyDigest: optionalText(options, 'expected_policy_digest'),
+    expectedTrustStoreDigest: optionalText(options, 'expected_trust_digest'),
+    mcpConfigPath: optionalText(options, 'mcp_config'),
+    timeoutMs: optionalInteger(options, 'timeout_ms'),
+    maxDocumentBytes: optionalInteger(options, 'max_document_bytes'),
+  });
+  process.stdout.write(json ? formatDoctorJson(result) : formatDoctorHuman(result));
+  return doctorExitCode(result);
+}
+
+async function collectEvidenceCommand(options) {
+  assertOptions(options, ['input', 'root', 'path_base', 'subject_digest', 'max_files', 'max_file_bytes', 'max_total_bytes']);
+  let inputs;
+  try {
+    inputs = await readJson(required(options, 'input'), { maxBytes: 1_048_576 });
+  } catch {
+    throw new UsageError('Evidence descriptor input failed validation (EINPUT)');
+  }
+  if (!Array.isArray(inputs)) throw new UsageError('Evidence input file must contain a JSON array');
+  try {
+    const collection = await collectEvidence(inputs, {
+      root: optionalText(options, 'root') ?? '.',
+      pathBase: optionalText(options, 'path_base'),
+      subjectDigest: optionalText(options, 'subject_digest'),
+      maxFiles: optionalInteger(options, 'max_files'),
+      maxFileBytes: optionalInteger(options, 'max_file_bytes'),
+      maxTotalBytes: optionalInteger(options, 'max_total_bytes'),
+    });
+    process.stdout.write(`${JSON.stringify(collection, null, 2)}\n`);
+    return 0;
+  } catch (error) {
+    if (error instanceof EvidenceCollectionError) {
+      throw new UsageError(`Evidence collection failed (${error.code})`);
+    }
+    throw error;
+  }
 }
 
 function parseOptions(tokens) {
@@ -47,8 +126,15 @@ function parseOptions(tokens) {
       result._.push(token);
       continue;
     }
-    const [rawKey, inline] = token.slice(2).split('=', 2);
+    const option = token.slice(2);
+    const separator = option.indexOf('=');
+    const rawKey = separator === -1 ? option : option.slice(0, separator);
+    const inline = separator === -1 ? undefined : option.slice(separator + 1);
+    if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(rawKey)) {
+      throw new UsageError(`Invalid option: --${rawKey || '(empty)'}`);
+    }
     const key = rawKey.replaceAll('-', '_');
+    if (Object.hasOwn(result, key)) throw new UsageError(`Duplicate --${rawKey}`);
     if (inline !== undefined) {
       result[key] = inline;
     } else if (tokens[index + 1] && !tokens[index + 1].startsWith('--')) {
@@ -62,17 +148,20 @@ function parseOptions(tokens) {
 }
 
 async function digestCommand(options) {
+  assertOptions(options, ['file']);
   const file = required(options, 'file');
   process.stdout.write(`${sha256(await readFile(file))}\n`);
   return 0;
 }
 
 async function documentDigestCommand(options) {
+  assertOptions(options, ['file']);
   process.stdout.write(`${documentDigest(await readJson(required(options, 'file')))}\n`);
   return 0;
 }
 
 async function signCommand(command, options) {
+  assertOptions(options, ['input', 'private_key', 'key_id', 'output']);
   const input = await readJson(required(options, 'input'));
   const privateKey = await readFile(required(options, 'private_key'), 'utf8');
   const keyId = required(options, 'key_id');
@@ -87,6 +176,13 @@ async function signCommand(command, options) {
 }
 
 async function checkCommand(options, environment) {
+  assertOptions(options, [
+    'candidate', 'git_root', 'root', 'evidence_root', 'manifest', 'receipt', 'authorization',
+    'policy', 'trust', 'dossier', 'embed_evidence', 'at', 'json', 'expected_policy_digest',
+    'expected_trust_digest', 'expected_repository', 'expected_environment',
+  ]);
+  const json = booleanFlag(options, 'json');
+  const embedEvidence = booleanFlag(options, 'embed_evidence');
   const candidate = normalizeCandidate(required(options, 'candidate'));
   const gitRoot = path.resolve(options.git_root ?? options.root ?? process.cwd());
   const evidenceRoot = path.resolve(options.evidence_root ?? options.root ?? gitRoot);
@@ -122,10 +218,10 @@ async function checkCommand(options, environment) {
     candidate,
     receiverContext,
     at,
-    embedEvidence: options.embed_evidence === true || options.embed_evidence === 'true',
+    embedEvidence,
   });
   await writeJsonAtomic(dossierPath, dossier);
-  if (options.json) {
+  if (json) {
     process.stdout.write(`${JSON.stringify({
       decision: dossier.decision,
       dossier: dossierPath,
@@ -149,6 +245,11 @@ async function checkCommand(options, environment) {
 }
 
 async function verifyDossierCommand(options) {
+  assertOptions(options, [
+    'dossier', 'trust', 'candidate', 'tree_digest', 'working_tree_clean', 'expected_policy_digest',
+    'expected_trust_digest', 'expected_repository', 'expected_environment', 'at', 'json',
+  ]);
+  const json = booleanFlag(options, 'json');
   const dossier = await readJson(required(options, 'dossier'), { maxBytes: 67_108_864 });
   const trustStore = await readJson(required(options, 'trust'));
   const candidate = normalizeCandidate(required(options, 'candidate'));
@@ -166,7 +267,7 @@ async function verifyDossierCommand(options) {
     candidate,
     receiverContext,
   });
-  if (options.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  if (json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   else {
     process.stdout.write(`Integrity: ${result.integrity}\nReproduction: ${result.recordedReproduction}\nEvidence: ${result.verificationLevel}\nAnchoring: UNANCHORED\nRecorded: ${result.recorded.conclusion}\nCurrent: ${result.current.conclusion}\n`);
     for (const entry of result.current.reasons) process.stdout.write(`  ${entry.severity} ${entry.code}: ${entry.message}\n`);
@@ -175,6 +276,7 @@ async function verifyDossierCommand(options) {
 }
 
 async function demoCommand(options) {
+  assertOptions(options, ['out', 'candidate', 'tree_digest', 'repository', 'environment']);
   const output = path.resolve(options.out ?? 'artifacts/demo');
   const bundle = createExampleBundle(new Date(), {
     candidate: options.candidate ? normalizeCandidate(options.candidate) : undefined,
@@ -207,6 +309,7 @@ async function demoCommand(options) {
 }
 
 async function initCommand(options) {
+  assertOptions(options, ['directory']);
   const root = path.resolve(options.directory ?? '.');
   const policy = createExampleBundle(new Date()).policy;
   const workflow = `name: assurance-shadow
@@ -353,9 +456,74 @@ function required(options, name) {
   return value;
 }
 
+function assertOptions(options, allowed) {
+  if (options._.length > 0) throw new UsageError(`Unexpected positional argument: ${options._[0]}`);
+  const permitted = new Set(['_', ...allowed]);
+  const unknown = Object.keys(options).filter((key) => !permitted.has(key)).sort();
+  if (unknown.length > 0) throw new UsageError(`Unknown option: --${unknown[0].replaceAll('_', '-')}`);
+}
+
+function booleanFlag(options, name) {
+  const value = options[name];
+  if (value === undefined) return false;
+  if (value !== true) throw new UsageError(`--${name.replaceAll('_', '-')} does not accept a value`);
+  return true;
+}
+
+function optionalText(options, name) {
+  const value = options[name];
+  if (value === undefined) return undefined;
+  if (value === true || typeof value !== 'string' || value.length === 0) {
+    throw new UsageError(`--${name.replaceAll('_', '-')} requires a value`);
+  }
+  return value;
+}
+
+function optionalInteger(options, name) {
+  const value = optionalText(options, name);
+  if (value === undefined) return undefined;
+  if (!/^[1-9][0-9]*$/.test(value)) {
+    throw new UsageError(`--${name.replaceAll('_', '-')} must be a positive integer`);
+  }
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed)) {
+    throw new UsageError(`--${name.replaceAll('_', '-')} must be a positive safe integer`);
+  }
+  return parsed;
+}
+
 export class UsageError extends Error {}
 
-const HELP = `SprintLoop Assurance Kit\n\nProof before permission for an exact agent-built candidate.\n\nCommands:\n  init [--directory DIR]\n  demo [--out DIR] [--candidate SHA] [--tree-digest TREE] [--repository URL] [--environment NAME]\n  digest --file FILE\n  document-digest --file JSON\n  sign-receipt --input FILE --private-key PEM --key-id ID --output FILE\n  sign-authorization --input FILE --private-key PEM --key-id ID --output FILE\n  check --candidate SHA --expected-policy-digest SHA256 --expected-trust-digest SHA256\n        --expected-repository URL --expected-environment NAME [--git-root DIR] [--evidence-root DIR]\n        [--manifest FILE] [--receipt FILE] [--authorization FILE] [--policy FILE] [--trust FILE]\n        [--dossier FILE] [--embed-evidence] [--at ISO] [--json]\n  verify-dossier --dossier FILE --trust FILE --candidate SHA --tree-digest TREE\n        --working-tree-clean true|false --expected-policy-digest SHA256 --expected-trust-digest SHA256\n        --expected-repository URL --expected-environment NAME [--at ISO] [--json]\n\nExit codes: 0 PASS, 10 HOLD, 20 BLOCK, 2 usage/runtime error.\n`;
+const HELP = `SprintLoop Assurance Kit
+
+Proof before permission for an exact agent-built candidate.
+
+Commands:
+  version [--json]
+  doctor [--root DIR] [--policy FILE] [--trust FILE] [--expected-head SHA]
+         [--expected-tree SHA] [--expected-policy-digest SHA256] [--expected-trust-digest SHA256]
+         [--mcp-config ABSOLUTE_FILE] [--timeout-ms INTEGER] [--max-document-bytes INTEGER] [--json]
+  collect-evidence --input JSON [--root DIR] [--path-base RELATIVE_PATH]
+         [--subject-digest GIT_DIGEST] [--max-files INTEGER]
+         [--max-file-bytes INTEGER] [--max-total-bytes INTEGER]
+  init [--directory DIR]
+  demo [--out DIR] [--candidate SHA] [--tree-digest TREE] [--repository URL] [--environment NAME]
+  digest --file FILE
+  document-digest --file JSON
+  sign-receipt --input FILE --private-key PEM --key-id ID --output FILE
+  sign-authorization --input FILE --private-key PEM --key-id ID --output FILE
+  check --candidate SHA --expected-policy-digest SHA256 --expected-trust-digest SHA256
+        --expected-repository URL --expected-environment NAME [--git-root DIR] [--evidence-root DIR]
+        [--manifest FILE] [--receipt FILE] [--authorization FILE] [--policy FILE] [--trust FILE]
+        [--dossier FILE] [--embed-evidence] [--at ISO] [--json]
+  verify-dossier --dossier FILE --trust FILE --candidate SHA --tree-digest TREE
+        --working-tree-clean true|false --expected-policy-digest SHA256 --expected-trust-digest SHA256
+        --expected-repository URL --expected-environment NAME [--at ISO] [--json]
+
+Help flags (top-level or after a command): --help, -h.
+Top-level version flags: --version, -V.
+Exit codes: 0 PASS, 10 setup warning/HOLD, 20 BLOCK, 2 usage/runtime error.
+`;
 
 const MCP_HELP = HELP.replace('  digest --file FILE\n', '  mcp --config ABSOLUTE_FILE\n  digest --file FILE\n');
 

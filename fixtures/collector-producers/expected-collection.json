@@ -1,0 +1,145 @@
+{
+  "schemaVersion": "assurance.sprintloop.dev/evidence-collection/v1",
+  "pathBase": ".",
+  "evidence": [
+    {
+      "id": "producer:cosign-sigstore-bundle",
+      "type": "signature-bundle",
+      "path": "producer-output/cosign-3.1.3-sigstore-bundle.json",
+      "mediaType": "application/vnd.dev.sigstore.bundle+json",
+      "digest": "sha256:0eefe4a5259424e412939f4f6c62e0dda64f3a2402198a05aa71ad41ea5d7b0a",
+      "sizeBytes": 383,
+      "format": "sigstore",
+      "formatVersion": "0.3",
+      "inspectionLevel": "ENVELOPE_ONLY",
+      "claimsVerified": false,
+      "summary": {
+        "contentType": "message-signature",
+        "keyMaterialType": "publicKey",
+        "transparencyLogEntryCount": 0,
+        "timestampCount": 0
+      }
+    },
+    {
+      "id": "producer:github-artifact-attestation-bundle",
+      "type": "signature-bundle",
+      "path": "producer-output/github-cli-attestation-21158102-sigstore-bundle.json",
+      "mediaType": "application/vnd.dev.sigstore.bundle+json",
+      "digest": "sha256:94da5cc2528f72c73f60268f2fff5009098701c02a5c8d832155e2888f016429",
+      "sizeBytes": 14342,
+      "format": "sigstore",
+      "formatVersion": "0.3",
+      "inspectionLevel": "ENVELOPE_ONLY",
+      "claimsVerified": false,
+      "summary": {
+        "contentType": "dsse-envelope",
+        "keyMaterialType": "certificate",
+        "transparencyLogEntryCount": 1,
+        "timestampCount": 0
+      }
+    },
+    {
+      "id": "producer:github-codeql-sarif",
+      "type": "static-analysis",
+      "path": "producer-output/github-codeql-action-6f530319-sarif-2.1.0.json",
+      "mediaType": "application/sarif+json",
+      "digest": "sha256:a2ff9377fb1291b96045fdd830ec33712dba4729a2ea4df12121772de8626188",
+      "sizeBytes": 2007,
+      "format": "sarif",
+      "formatVersion": "2.1.0",
+      "inspectionLevel": "STRUCTURE_FULL",
+      "claimsVerified": false,
+      "summary": {
+        "runCount": 1,
+        "resultCount": 2,
+        "errorCount": 0,
+        "warningCount": 0,
+        "noteCount": 0,
+        "noneCount": 0,
+        "unresolvedLevelCount": 2,
+        "suppressionRequestCount": 0
+      }
+    },
+    {
+      "id": "producer:github-slsa-provenance",
+      "type": "provenance",
+      "path": "producer-output/github-cli-attestation-21158102-slsa-v1.json",
+      "mediaType": "application/vnd.in-toto+json",
+      "digest": "sha256:abe7cda692b3a3a7ea43846d33e2f3906d200308a6a517112d894227b1beae35",
+      "sizeBytes": 3486,
+      "format": "in-toto",
+      "formatVersion": "1",
+      "inspectionLevel": "ENVELOPE_ONLY",
+      "claimsVerified": false,
+      "summary": {
+        "predicateProfile": "slsa-provenance-v1",
+        "subjectCount": 21,
+        "subjectDigestAlgorithmCount": 1,
+        "dependencyCount": 1
+      }
+    },
+    {
+      "id": "producer:pytest-junit",
+      "type": "test-report",
+      "path": "producer-output/pytest-9.0.2-junit.xml",
+      "mediaType": "application/junit+xml",
+      "digest": "sha256:68d38157bc633ec11e03137b9b4fabd8dd0f08d3d22f2fbab4ca936f59e18d5c",
+      "sizeBytes": 1033,
+      "format": "junit",
+      "formatVersion": "xml",
+      "inspectionLevel": "STRUCTURE_FULL",
+      "claimsVerified": false,
+      "summary": {
+        "suiteCount": 1,
+        "testCount": 3,
+        "failureCount": 1,
+        "errorCount": 0,
+        "skippedCount": 1
+      }
+    },
+    {
+      "id": "producer:syft-cyclonedx",
+      "type": "sbom",
+      "path": "producer-output/syft-1.31.0-cyclonedx.json",
+      "mediaType": "application/vnd.cyclonedx+json",
+      "digest": "sha256:66d135c9169fc37920b10e95bb1fc96fe1cfb30f5fda8e00a230f28b2d409071",
+      "sizeBytes": 4937,
+      "format": "cyclonedx",
+      "formatVersion": "1.6",
+      "inspectionLevel": "STRUCTURE_FULL",
+      "claimsVerified": false,
+      "summary": {
+        "componentCount": 4,
+        "serviceCount": 0,
+        "dependencyNodeCount": 0,
+        "vulnerabilityCount": 0,
+        "compositionCount": 0
+      }
+    },
+    {
+      "id": "producer:syft-spdx",
+      "type": "sbom",
+      "path": "producer-output/syft-1.31.0-spdx.json",
+      "mediaType": "application/spdx+json",
+      "digest": "sha256:1f9cccc3dd2f4226d17d355ede9ef22d6b651553626028a11e7d74d0f2e7d22e",
+      "sizeBytes": 7455,
+      "format": "spdx",
+      "formatVersion": "2.3",
+      "inspectionLevel": "STRUCTURE_FULL",
+      "claimsVerified": false,
+      "summary": {
+        "documentCount": 1,
+        "packageCount": 3,
+        "fileCount": 1,
+        "snippetCount": 0,
+        "relationshipCount": 5
+      }
+    }
+  ],
+  "totals": {
+    "itemCount": 7,
+    "byteCount": 33643,
+    "structureFullCount": 4,
+    "envelopeOnlyCount": 3
+  }
+}

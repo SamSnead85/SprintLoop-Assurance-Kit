@@ -27,7 +27,7 @@ test('composite Action requires the complete protected receiver context', async 
   }
   assert.match(action, /--git-root/);
   assert.match(action, /--evidence-root/);
-  assert.match(action, /Node >=20\.11 and <25/);
+  assert.match(action, /Node >=22\.23\.2 <23 or >=24\.20\.0 <25/);
   assert.match(action, /id: assure/);
   assert.match(action, /node "\$\{\{ github\.action_path \}\}\/src\/cli\.mjs"/);
   assert.doesNotMatch(action, /default: \.assurance/);
@@ -101,6 +101,15 @@ test('all workflow checkouts disable credential persistence and runners are fixe
     assert.ok(checkouts.length > 0, `${relative} has no checkout`);
     assert.equal((workflow.match(/persist-credentials: false/g) ?? []).length, checkouts.length, relative);
   }
+  const ci = await readFile(path.join(root, '.github/workflows/ci.yml'), 'utf8');
+  assert.match(ci, /os: \[ubuntu-24\.04, macos-14, windows-2022\]/);
+  assert.match(ci, /node: \[22\.23\.2, 24\.20\.0\]/);
+  assert.match(ci, /actions\/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e/);
+  assert.match(ci, /package-manager-cache: false/);
+  assert.match(ci, /token: ''/);
+  assert.match(ci, /mirror-token: ''/);
+  assert.match(ci, /git --no-lazy-fetch --version/);
+  assert.match(ci, /npm run lint && npm test && npm run fixtures:check && npm run package:smoke/);
   const example = await readFile(path.join(root, 'examples/github/assurance.yml'), 'utf8');
   assert.match(example, /repository: \$\{\{ github\.event\.pull_request\.head\.repo\.full_name \}\}/);
   assert.match(example, /repository: \$\{\{ github\.repository \}\}/);

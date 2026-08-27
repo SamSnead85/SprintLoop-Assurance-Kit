@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="1" tests="3" time="0.000" timestamp="2026-01-01T00:00:00Z" hostname="fixture.invalid"><testcase classname="fixtures.collector-producers.inputs.pytest.test_example" name="test_passes" time="0.000" /><testcase classname="fixtures.collector-producers.inputs.pytest.test_example" name="test_failure_is_visible_to_the_producer" time="0.000"><failure message="assert (2 * 2) == 5">def test_failure_is_visible_to_the_producer():
+&gt;       assert 2 * 2 == 5
+E       assert (2 * 2) == 5
+
+fixtures/collector-producers/inputs/pytest/test_example.py:9: AssertionError</failure></testcase><testcase classname="fixtures.collector-producers.inputs.pytest.test_example" name="test_skipped" time="0.000"><skipped type="pytest.skip" message="collector interoperability fixture">fixtures/collector-producers/inputs/pytest/test_example.py:12: collector interoperability fixture</skipped></testcase></testsuite></testsuites>

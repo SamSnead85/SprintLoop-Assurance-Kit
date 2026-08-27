@@ -29,7 +29,9 @@ function normalize(value) {
   }
 
   if (typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
-    const result = {};
+    // Preserve prototype-named JSON keys as ordinary own properties instead
+    // of invoking legacy Object.prototype setters such as __proto__.
+    const result = Object.create(null);
     for (const key of Object.keys(value).sort()) {
       const entry = value[key];
       if (entry === undefined || typeof entry === 'function' || typeof entry === 'symbol') {

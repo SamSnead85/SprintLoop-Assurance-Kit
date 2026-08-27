@@ -1,6 +1,9 @@
 import { constants } from 'node:fs';
 import { open } from 'node:fs/promises';
 import { readHandleBounded } from './bounded.mjs';
+import { parseJsonStrictText } from './strict-json.mjs';
+
+const utf8 = new TextDecoder('utf-8', { fatal: true });
 
 export async function readJson(file, { maxBytes = 1_048_576, expectedIdentity } = {}) {
   const handle = await open(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
@@ -18,7 +21,13 @@ export async function readJson(file, { maxBytes = 1_048_576, expectedIdentity } 
     if (before.dev !== after.dev || before.ino !== after.ino || before.size !== after.size || before.mtimeMs !== after.mtimeMs || bytes.length !== after.size) {
       throw new Error(`JSON input changed during read: ${file}`);
     }
-    return JSON.parse(bytes.toString('utf8'));
+    let text;
+    try {
+      text = utf8.decode(bytes);
+    } catch {
+      throw new SyntaxError('JSON input is not valid UTF-8');
+    }
+    return parseJsonStrictText(text);
   } finally {
     await handle.close();
   }

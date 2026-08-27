@@ -15,9 +15,11 @@ const decoder = new TextDecoder('utf-8', { fatal: true });
  * local clean filters, attributes, or filemode configuration. Canonical tree
  * entries are compared directly with raw worktree bytes and executable modes.
  */
-export async function inspectGitState(root, { includeUntracked = false } = {}) {
+export async function inspectGitState(root, { includeUntracked = false, signal } = {}) {
+  signal?.throwIfAborted();
   const candidateRoot = await realpath(path.resolve(root));
   const common = [
+    '--no-lazy-fetch',
     '-c', 'core.attributesFile=/dev/null',
     '-c', 'core.excludesFile=/dev/null',
     '-c', 'core.filemode=true',
@@ -44,6 +46,7 @@ export async function inspectGitState(root, { includeUntracked = false } = {}) {
       GIT_OPTIONAL_LOCKS: '0',
       GIT_TERMINAL_PROMPT: '0',
     },
+    ...(signal ? { signal } : {}),
   };
   const { stdout: headOutput } = await execFileAsync(
     'git',
@@ -71,7 +74,8 @@ export async function inspectGitState(root, { includeUntracked = false } = {}) {
   const entries = parseTree(rawTree);
   let workingTreeClean = true;
   for (const entry of entries) {
-    if (!await matchesWorktreeEntry(candidateRoot, entry, algorithm, includeUntracked)) {
+    signal?.throwIfAborted();
+    if (!await matchesWorktreeEntry(candidateRoot, entry, algorithm, includeUntracked, signal)) {
       workingTreeClean = false;
       break;
     }
@@ -105,6 +109,7 @@ export async function inspectGitState(root, { includeUntracked = false } = {}) {
     [...common, 'rev-parse', '--verify', 'HEAD'],
     baseOptions,
   );
+  signal?.throwIfAborted();
   if (confirmedHeadOutput.trim() !== head) throw new Error('Candidate HEAD changed during Git inspection');
   return { head, tree: tree.trim(), workingTreeClean };
 }
@@ -143,7 +148,8 @@ function parseTree(buffer) {
   return result;
 }
 
-async function matchesWorktreeEntry(root, entry, algorithm, includeUntracked) {
+async function matchesWorktreeEntry(root, entry, algorithm, includeUntracked, signal) {
+  signal?.throwIfAborted();
   const absolute = path.resolve(root, ...entry.segments);
   const relative = path.relative(root, absolute);
   if (!relative || path.isAbsolute(relative) || relative === '..' || relative.startsWith(`..${path.sep}`)) return false;
@@ -153,12 +159,12 @@ async function matchesWorktreeEntry(root, entry, algorithm, includeUntracked) {
     if (entry.mode === '160000') {
       const submodule = await lstat(absolute);
       if (!submodule.isDirectory() || submodule.isSymbolicLink()) return false;
-      const nested = await inspectGitState(absolute, { includeUntracked });
+      const nested = await inspectGitState(absolute, { includeUntracked, signal });
       matches = nested.head === entry.objectId && nested.workingTreeClean;
     } else if (entry.mode === '120000') {
       matches = await matchesSymlink(absolute, entry.objectId, algorithm);
     } else {
-      matches = await matchesRegularFile(absolute, entry, algorithm);
+      matches = await matchesRegularFile(absolute, entry, algorithm, signal);
     }
     return matches && await directoryAncestorsUnchanged(ancestors);
   } catch (error) {
@@ -195,7 +201,8 @@ async function matchesSymlink(absolute, expectedObjectId, algorithm) {
   return sameIdentity(before, after) && gitBlobDigest(target, algorithm) === expectedObjectId;
 }
 
-async function matchesRegularFile(absolute, entry, algorithm) {
+async function matchesRegularFile(absolute, entry, algorithm, signal) {
+  signal?.throwIfAborted();
   const handle = await open(
     absolute,
     constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0),
@@ -207,8 +214,9 @@ async function matchesRegularFile(absolute, entry, algorithm) {
     if (actualMode !== entry.mode) return false;
     const hash = createHash(algorithm);
     hash.update(Buffer.from(`blob ${before.size}\0`, 'utf8'));
-    const stream = handle.createReadStream({ autoClose: false });
+    const stream = handle.createReadStream({ autoClose: false, ...(signal ? { signal } : {}) });
     for await (const chunk of stream) hash.update(chunk);
+    signal?.throwIfAborted();
     const after = await handle.stat();
     return sameIdentity(before, after) && hash.digest('hex') === entry.objectId;
   } finally {

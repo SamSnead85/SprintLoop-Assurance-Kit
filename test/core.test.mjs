@@ -16,6 +16,16 @@ test('canonical JSON sorts object keys and preserves array order', () => {
   assert.throws(() => canonicalize({ value: 1.25 }), /safe integers/);
 });
 
+test('canonical JSON preserves prototype-named keys without digest collisions', () => {
+  const hostile = JSON.parse('{"x":1,"__proto__":{"polluted":true},"constructor":{"nested":{"__proto__":"value"}}}');
+  assert.equal(
+    canonicalize(hostile),
+    '{"__proto__":{"polluted":true},"constructor":{"nested":{"__proto__":"value"}},"x":1}',
+  );
+  assert.notEqual(documentDigest(hostile), documentDigest({ x: 1 }));
+  assert.equal(Object.prototype.polluted, undefined);
+});
+
 test('golden path creates a PASS dossier and verifies it offline', async () => {
   await withBundle(async (directory, bundle) => {
     const dossier = await dossierFor(directory, bundle, { embedEvidence: true });

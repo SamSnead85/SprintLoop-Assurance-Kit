@@ -1,0 +1,30 @@
+# Review routing only. Governance and branch rules determine required approval.
+* @SamSnead85
+
+# Trust and decision surfaces are listed explicitly so ownership remains visible
+# when the default rule is distributed across more maintainers in the future.
+/schemas/ @SamSnead85
+/src/canonical.mjs @SamSnead85
+/src/collect-evidence.mjs @SamSnead85
+/src/crypto.mjs @SamSnead85
+/src/doctor.mjs @SamSnead85
+/src/evaluate.mjs @SamSnead85
+/src/evidence.mjs @SamSnead85
+/src/git-state.mjs @SamSnead85
+/src/validate.mjs @SamSnead85
+/src/verify-signature.mjs @SamSnead85
+/src/materialize-bundle.mjs @SamSnead85
+/src/prepare-shadow-bundle.mjs @SamSnead85
+/src/mcp-config.mjs @SamSnead85
+/src/mcp-server.mjs @SamSnead85
+/src/mcp-tools.mjs @SamSnead85
+/src/strict-json.mjs @SamSnead85
+/action.yml @SamSnead85
+/materialize-bundle/ @SamSnead85
+/prepare-shadow-bundle/ @SamSnead85
+/.github/workflows/ @SamSnead85
+/GOVERNANCE.md @SamSnead85
+/SECURITY.md @SamSnead85
+/MAINTAINERS.md @SamSnead85
+/docs/decisions/ @SamSnead85
+/docs/THREAT-MODEL.md @SamSnead85
