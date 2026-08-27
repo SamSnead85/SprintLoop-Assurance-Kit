@@ -85,17 +85,44 @@ Current: PASS
 
 ## Use it in GitHub Actions
 
-Start with the [provider-ready shadow scaffold](examples/github/assurance.yml). It checks out a fork pull request's exact head SHA into `candidate/`, checks out only the protected base branch's policy and trust files into `receiver/`, and materializes a post-candidate assurance bundle under runner-temporary storage. The scaffold intentionally fails until a receiver-governed authenticated provider step populates its external inbox. The included materializer performs no network or credential work.
+Choose the integration lane that matches the controls you actually operate:
+
+| Lane | Use it for | What it can conclude |
+| --- | --- | --- |
+| [No-secret shadow manifest](docs/SHADOW-PROVIDER.md) | A protected manual or scheduled pilot with receiver-declared CI evidence, but no verifier/signing service yet | Always `HOLD`, always `partial`, never enforcement eligible |
+| [Authenticated complete provider](docs/BUNDLE-PROVIDER-CONTRACT.md) | A receiver-governed workflow that can retrieve a signed receipt and finite authorization for the exact candidate | `PASS`, `HOLD`, or `BLOCK` after full evaluation |
+
+For the first lane, install the [manual/scheduled shadow workflow](examples/github/shadow-provider.yml). `prepare-shadow-bundle` disables Git replacement objects, compares canonical tree entries directly with raw worktree bytes and executable modes without candidate index flags or clean filters, and uses a receiver-owned temporary index only to find non-ignored untracked files. It hashes a bounded exact evidence inventory under runner-temporary storage and writes only a canonical manifest plus declared evidence. It never fetches, signs, handles credentials, creates a receipt/authorization, or emits `PASS`. Candidate evidence commands must write outside the checkout and leave it clean. Aggregate multiple JUnit, SARIF, or similar fragments into one declared artifact per evidence type. Because the sample runs candidate code and capture in the same unprivileged job, its output is producer-controlled telemetry—not a receiver-isolated observation or immutable assurance artifact.
+
+For the second lane, start with the [authenticated-provider scaffold](examples/github/assurance.yml). It checks out a fork pull request's exact head SHA into `candidate/`, checks out only the protected base branch's policy and trust files into `receiver/`, and materializes a post-candidate assurance bundle under runner-temporary storage. The scaffold intentionally fails until a receiver-governed authenticated provider step populates its external inbox. The included materializer performs no network or credential work.
 
 The manifest, receipt, authorization, and evidence must never come from `candidate/`: a tracked manifest cannot bind the final commit/tree that contains itself. They are generated after the candidate is sealed and retrieved by exact candidate, repository, environment, policy digest, and trust boundary. The main Action consumes only checked materializer outputs, verifies actual Git `HEAD`, tree, and tracked cleanliness, and fails on empty or substituted receiver values. See the [external bundle provider contract](docs/BUNDLE-PROVIDER-CONTRACT.md).
 
 Bundle bytes are treated as untrusted until those signatures and bindings verify, so integrity does not depend on trusting the transport. The operator still owns provider identity, authorization, authenticated exact-coordinate lookup, availability, and confidentiality; the kit deliberately does not fetch from storage or handle provider credentials.
 
-The sample is a **shadow/minimum integration**, not enterprise-grade enforcement by itself. A pull request can alter a repo-local workflow. Make the result required only when the check/workflow source is receiver-governed through a GitHub App, organization-required workflow and ruleset, or an equivalent protected control that a candidate cannot spoof or replace.
+The no-secret lane must never be a required check. The authenticated sample is also not enterprise-grade enforcement by itself: a pull request can alter a repo-local workflow. Make a complete result required only when the check/workflow source is receiver-governed through a GitHub App, organization-required workflow and ruleset, or an equivalent protected control that a candidate cannot spoof or replace.
 
-Pin the Action to an immutable reviewed commit, never a mutable tag. The Action exits `0` on `PASS`, `10` on `HOLD`, `20` on `BLOCK`, and `2` on usage or runtime failure. GitHub treats every nonzero result as not eligible.
+Pin every Action to an immutable reviewed commit, never a mutable tag. The main evaluator exits `0` on `PASS`, `10` on `HOLD`, `20` on `BLOCK`, and `2` on usage or runtime failure. GitHub treats every nonzero evaluator result as not eligible. The advisory shadow preparer exits successfully after capture but publishes `enforcement-eligible: false`; its green job status is not release permission.
 
 The action requires only `contents: read`; it does not write checks, deployments, comments, or repository contents. Promotion remains the responsibility of the repository's protected environment or deployment system.
+
+## Connect an AI engineering client
+
+The Kit includes a local, dependency-free stdio MCP server for Codex, Claude Code, Cursor, and compatible engineering clients. It exposes six fixed read-only tools for capabilities, policy requirements, manifest validation, external-bundle evaluation, dossier verification, and reason-code explanation. Until an audited `0.2.x` artifact is released, run it only from an exact reviewed source checkout and pin the full commit SHA.
+
+```bash
+git clone https://github.com/SamSnead85/SprintLoop-Assurance-Kit.git /absolute/pinned/SprintLoop-Assurance-Kit
+git -C /absolute/pinned/SprintLoop-Assurance-Kit checkout --detach FULL_40_CHARACTER_REVIEWED_COMMIT_SHA
+codex mcp add sprintloop-assurance -- node /absolute/pinned/SprintLoop-Assurance-Kit/bin/sprintloop-assure.mjs mcp --config /absolute/path/assurance-mcp.json
+```
+
+The shorter global `sprintloop-assure` registration form is reserved for a future reviewed package release; it is not the current source-checkout installation path.
+
+The server uses capability-granted `bundle`, `receiver`, and `dossier` root IDs. It rejects arbitrary paths, parent traversal, symlinked or replaced roots/documents, overlapping roots, oversized frames/documents, missing current context, unsafe candidate metadata, and output that violates its advertised JSON Schema 2020-12 contracts. Manifest metadata is explicitly labeled untrusted. MCP `2026-07-28` stateless discovery is primary, with `2025-11-25` and `2025-06-18` initialize compatibility.
+
+This is an engineering inspection lane, not a release lane. Every tool is read-only, closed-world, and returns `enforcementEligible: false`; it cannot sign, approve, mutate policy/trust, write a check, merge, deploy, or enable enforcement. Use the receiver-governed Action or deployment interlock for authoritative effects.
+
+See the [MCP integration and threat-boundary guide](docs/MCP.md) and [copyable client/config examples](examples/mcp/).
 
 ## The independence rule
 
@@ -122,6 +149,7 @@ Model metadata is descriptive only. It never creates identity, independence, tru
 ```text
 sprintloop-assure init [--directory DIR]
 sprintloop-assure demo [--out DIR]
+sprintloop-assure mcp --config ABSOLUTE_FILE
 sprintloop-assure digest --file FILE
 sprintloop-assure document-digest --file JSON
 sprintloop-assure sign-receipt --input FILE --private-key PEM --key-id ID --output FILE
@@ -158,7 +186,7 @@ const standing = verifyDossier(dossier, receiverTrustStore, {
 
 `verifyDossier(dossier, trustStore)` can still reproduce recorded history, but its `current` result is deliberately `BLOCK`; it never promotes dossier-controlled context into current receiver intent.
 
-See [the protocol](docs/PROTOCOL.md), [bundle provider contract](docs/BUNDLE-PROVIDER-CONTRACT.md), [decision semantics](docs/DECISION-SEMANTICS.md), and [GitHub integration guide](examples/github/README.md).
+See [the protocol](docs/PROTOCOL.md), [bundle provider contract](docs/BUNDLE-PROVIDER-CONTRACT.md), [decision semantics](docs/DECISION-SEMANTICS.md), [MCP integration guide](docs/MCP.md), and [GitHub integration guide](examples/github/README.md).
 
 ## Dossier verification levels
 
@@ -177,7 +205,7 @@ A custom model should be considered only after real pilot data demonstrates a re
 
 ## Status and safety boundary
 
-Version `0.1.x` is a pre-1.0 integration kit suitable for evaluation and controlled shadow pilots. It is not a hosted identity system, key-management service, deployment engine, compliance certification, or legal determination. Before enforcement, an operator must supply authenticated identities, independently governed signing keys, a protected trust store, repository rules, key rotation and revocation, time synchronization, retention controls, and recovery procedures.
+Version `0.2.x` is a pre-1.0 integration kit suitable for evaluation and controlled shadow pilots. It is not a hosted identity system, key-management service, deployment engine, compliance certification, or legal determination. Before enforcement, an operator must supply authenticated identities, independently governed signing keys, a protected trust store, repository rules, key rotation and revocation, time synchronization, retention controls, and recovery procedures.
 
 No npm package is published or authorized. `package.json` is `private:true`; the npm-format tarball exists only to test GitHub source-artifact installation. Use the pinned GitHub Action or clone an exact reviewed source commit.
 
@@ -188,7 +216,7 @@ npm run verify
 npm run release:dry-run
 ```
 
-`verify` works before the first commit. `release:dry-run` intentionally requires a clean Git repository and full reviewed commit SHA, then tests, scans, creates an SPDX SBOM, installation-smokes the private npm-format artifact, and writes a release subject, notes, and `SHA256SUMS`. It does **not** publish anything.
+`verify` works before the first commit. `release:dry-run` intentionally requires a clean Git repository and full reviewed commit SHA, then tests, scans, creates an SPDX SBOM, installation-smokes the private npm-format artifact, and writes a package release record, notes, and `SHA256SUMS`. It does **not** publish anything.
 
 ## Open-source and commercial boundary
 

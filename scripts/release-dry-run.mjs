@@ -6,7 +6,7 @@ import path from 'node:path';
 
 const root = process.cwd();
 const packageJson = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
-if (packageJson.private !== true) fail('package.json must set private:true for the authorized GitHub-only v0.1 release');
+if (packageJson.private !== true) fail('package.json must set private:true for the authorized GitHub-only pre-1.0 release');
 await access(path.join(root, 'docs/SOURCE-INVENTORY.md')).catch(() => fail('docs/SOURCE-INVENTORY.md is required'));
 
 const inside = run('git', ['rev-parse', '--is-inside-work-tree'], { allowFailure: true });
@@ -20,13 +20,28 @@ const unresolved = run('git', ['grep', '-n', '--fixed-strings', unresolvedMarker
 if (unresolved.status === 0) fail(`release:dry-run found an unresolved bootstrap marker:\n${unresolved.stdout}`);
 if (unresolved.status !== 1) fail('release:dry-run could not verify bootstrap markers');
 
-const integrationExample = await readFile(path.join(root, 'examples/github/assurance.yml'), 'utf8');
-const actionPins = [...integrationExample.matchAll(/SamSnead85\/SprintLoop-Assurance-Kit(?:\/materialize-bundle)?@([0-9a-f]{40})/g)]
-  .map((match) => match[1]);
-if (actionPins.length !== 2 || actionPins[0] !== actionPins[1]) {
-  fail('release:dry-run requires two identical full immutable Action revisions');
+const [integrationExample, shadowExample, shadowGuide, cliTemplate, remoteSmoke] = await Promise.all([
+  readFile(path.join(root, 'examples/github/assurance.yml'), 'utf8'),
+  readFile(path.join(root, 'examples/github/shadow-provider.yml'), 'utf8'),
+  readFile(path.join(root, 'docs/SHADOW-PROVIDER.md'), 'utf8'),
+  readFile(path.join(root, 'src/cli.mjs'), 'utf8'),
+  readFile(path.join(root, '.github/workflows/remote-action-smoke.yml'), 'utf8'),
+]);
+const actionPins = [
+  ...integrationExample.matchAll(/SamSnead85\/SprintLoop-Assurance-Kit(?:\/materialize-bundle)?@([0-9a-f]{40})/g),
+  ...shadowExample.matchAll(/SamSnead85\/SprintLoop-Assurance-Kit\/prepare-shadow-bundle@([0-9a-f]{40})/g),
+  ...cliTemplate.matchAll(/SamSnead85\/SprintLoop-Assurance-Kit(?:\/materialize-bundle)?@([0-9a-f]{40})/g),
+  ...remoteSmoke.matchAll(/SamSnead85\/SprintLoop-Assurance-Kit(?:\/(?:materialize-bundle|prepare-shadow-bundle))?@([0-9a-f]{40})/g),
+].map((match) => match[1]);
+if (actionPins.length !== 8 || actionPins.some((revision) => revision !== actionPins[0])) {
+  fail('release:dry-run requires eight identical full immutable Action revisions across examples, generated workflow, and remote smoke');
 }
 const actionRevision = actionPins[0];
+const guidePins = [...shadowGuide.matchAll(/SamSnead85\/SprintLoop-Assurance-Kit\/prepare-shadow-bundle@([0-9a-f]{40})/g)]
+  .map((match) => match[1]);
+if (guidePins.length !== 1 || guidePins[0] !== actionRevision) {
+  fail('release:dry-run requires the shadow-provider guide to use the reviewed Action revision');
+}
 
 run('npm', ['run', 'verify']);
 await mkdir(path.join(root, 'artifacts'), { recursive: true });
@@ -36,8 +51,8 @@ const tarballPath = path.join(root, 'artifacts', details.filename);
 const sbomPath = path.join(root, 'artifacts/sbom.spdx.json');
 const tarball = await readFile(tarballPath);
 const sbom = await readFile(sbomPath);
-const subject = {
-  schemaVersion: 'assurance.sprintloop.dev/release-subject/v1',
+const packageRelease = {
+  schemaVersion: 'assurance.sprintloop.dev/package-release/v1',
   npmPublished: false,
   distribution: 'github-prerelease-candidate',
   package: details.name,
@@ -52,13 +67,13 @@ const subject = {
     digest: digest(sbom),
   },
 };
-if (subject.npmPublished !== false || !subject.sourceRevision) fail('Release subject publication and source invariants failed');
-const subjectPath = path.join(root, 'artifacts/release-subject.json');
-await writeFile(subjectPath, `${JSON.stringify(subject, null, 2)}\n`, 'utf8');
-const subjectBytes = await readFile(subjectPath);
+if (packageRelease.npmPublished !== false || !packageRelease.sourceRevision) fail('Package release publication and source invariants failed');
+const packageReleasePath = path.join(root, 'artifacts/package-release.json');
+await writeFile(packageReleasePath, `${JSON.stringify(packageRelease, null, 2)}\n`, 'utf8');
+const packageReleaseBytes = await readFile(packageReleasePath);
 const sums = [
   [details.filename, digest(tarball).slice(7)],
-  ['release-subject.json', digest(subjectBytes).slice(7)],
+  ['package-release.json', digest(packageReleaseBytes).slice(7)],
   ['sbom.spdx.json', digest(sbom).slice(7)],
 ].sort((left, right) => left[0].localeCompare(right[0]));
 await writeFile(
@@ -66,9 +81,9 @@ await writeFile(
   `${sums.map(([file, hash]) => `${hash}  ${file}`).join('\n')}\n`,
   'utf8',
 );
-const notes = `# SprintLoop Assurance Kit ${details.version}\n\nGitHub prerelease candidate for source \`${source}\`.\n\n- Distribution: GitHub source/Action only; no npm package is published.\n- Release/tag source revision: \`${source}\`\n- Reviewed immutable Action revision: \`${actionRevision}\`\n- Candidate artifact: \`${details.filename}\`\n- Artifact digest: \`${subject.digest}\`\n- SBOM: \`${subject.sbom.path}\` (\`${subject.sbom.digest}\`)\n- Verification: run \`npm ci --ignore-scripts && npm run verify\` from this exact source revision.\n- Status: pre-1.0 shadow/minimum integration; see the security and enforcement boundaries in README.\n`;
+const notes = `# SprintLoop Assurance Kit ${details.version}\n\nGitHub prerelease candidate for source \`${source}\`.\n\n- Distribution: GitHub source/Action only; no npm package is published.\n- Release/tag source revision: \`${source}\`\n- Reviewed immutable Action revision: \`${actionRevision}\`\n- Candidate artifact: \`${details.filename}\`\n- Artifact digest: \`${packageRelease.digest}\`\n- SBOM: \`${packageRelease.sbom.path}\` (\`${packageRelease.sbom.digest}\`)\n- Verification: run \`npm ci --ignore-scripts && npm run verify\` from this exact source revision.\n- Status: pre-1.0 shadow/minimum integration; see the security and enforcement boundaries in README.\n`;
 await writeFile(path.join(root, 'artifacts/release-notes.md'), notes, 'utf8');
-process.stdout.write(`Unpublished GitHub candidate: ${subject.filename} ${subject.digest} source:${source}\n`);
+process.stdout.write(`Unpublished GitHub candidate: ${packageRelease.filename} ${packageRelease.digest} source:${source}\n`);
 
 function digest(bytes) {
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;

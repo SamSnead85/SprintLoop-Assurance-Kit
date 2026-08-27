@@ -1,0 +1,120 @@
+name: Prepare advisory shadow evidence
+description: Build an unsigned, partial candidate-bound manifest from receiver-declared runner evidence. Always HOLD; never enforcement eligible.
+author: LockedIn Labs contributors
+inputs:
+  candidate-root:
+    description: Exact receiver-run Git checkout. Must be the worktree top level with no tracked or non-ignored untracked changes.
+    required: true
+  candidate:
+    description: Receiver-selected lowercase 40/64-character candidate commit; checked against observed HEAD.
+    required: true
+  evidence-root:
+    description: Dedicated runner-temporary directory containing only declared evidence, outside the candidate checkout.
+    required: true
+  evidence:
+    description: Receiver-owned JSON array of exact id, type, path, and mediaType declarations. Digests are computed from captured bytes.
+    required: true
+  destination:
+    description: Fresh dedicated output directory under runner.temp. Only manifest.json and declared evidence are written.
+    required: true
+  policy:
+    description: Protected receiver-owned policy JSON under runner.temp, outside candidate and evidence roots.
+    required: true
+  trust:
+    description: Protected receiver-owned public trust-store JSON under runner.temp, outside candidate and evidence roots.
+    required: true
+  expected-policy-digest:
+    description: Protected canonical policy document digest.
+    required: true
+  expected-trust-digest:
+    description: Protected canonical public trust-store document digest.
+    required: true
+  expected-repository:
+    description: Protected receiver-owned absolute repository URI.
+    required: true
+  expected-environment:
+    description: Protected receiver-owned target environment identifier.
+    required: true
+  change-id:
+    description: Receiver-owned stable change identifier; never read from the candidate.
+    required: true
+  intent-id:
+    description: Receiver-owned intent identifier; never read from the candidate.
+    required: true
+  intent-digest:
+    description: Receiver-owned canonical intent digest; never read from the candidate.
+    required: true
+  producer-principal-id:
+    description: Receiver-asserted candidate producer principal identifier.
+    required: true
+  producer-owner-id:
+    description: Receiver-asserted candidate producer owner identifier.
+    required: true
+  producer-control-domain:
+    description: Receiver-asserted candidate producer control-domain identifier.
+    required: true
+outputs:
+  bundle-root:
+    description: Partial shadow bundle root. It contains no receipt, authorization, keys, or dossier.
+    value: ${{ steps.prepare.outputs.bundle_root }}
+  evidence-root:
+    description: Fresh output root containing the captured evidence paths.
+    value: ${{ steps.prepare.outputs.evidence_root }}
+  manifest:
+    description: Canonically serialized candidate-bound manifest path.
+    value: ${{ steps.prepare.outputs.manifest }}
+  manifest-digest:
+    description: Canonical SHA-256 manifest document digest.
+    value: ${{ steps.prepare.outputs.manifest_digest }}
+  candidate-digest:
+    description: Receiver-observed canonical Git candidate digest.
+    value: ${{ steps.prepare.outputs.candidate_digest }}
+  tree-digest:
+    description: Receiver-observed canonical Git tree digest.
+    value: ${{ steps.prepare.outputs.tree_digest }}
+  policy-digest:
+    description: Verified protected policy digest.
+    value: ${{ steps.prepare.outputs.policy_digest }}
+  trust-store-digest:
+    description: Verified protected public trust-store digest.
+    value: ${{ steps.prepare.outputs.trust_store_digest }}
+  disposition:
+    description: Always HOLD. This is structural metadata, not a verifier verdict.
+    value: ${{ steps.prepare.outputs.disposition }}
+  completeness:
+    description: Always partial because independent receipt and release authorization are absent.
+    value: ${{ steps.prepare.outputs.completeness }}
+  enforcement-eligible:
+    description: Always false. This Action must never be configured as a required check.
+    value: ${{ steps.prepare.outputs.enforcement_eligible }}
+  missing-evidence-types:
+    description: Sorted comma-separated policy-required types absent from the shadow manifest.
+    value: ${{ steps.prepare.outputs.missing_evidence_types }}
+runs:
+  using: composite
+  steps:
+    - name: Require supported Node runtime
+      shell: bash
+      run: node -e "const [major,minor]=process.versions.node.split('.').map(Number);if(major<20||(major===20&&minor<11)||major>=25){console.error('SprintLoop Assurance Kit requires Node >=20.11 and <25');process.exit(1)}"
+    - name: Prepare advisory-only shadow evidence
+      id: prepare
+      shell: bash
+      env:
+        ASSURANCE_CANDIDATE_ROOT: ${{ inputs.candidate-root }}
+        ASSURANCE_CANDIDATE: ${{ inputs.candidate }}
+        ASSURANCE_EVIDENCE_ROOT: ${{ inputs.evidence-root }}
+        ASSURANCE_EVIDENCE_DECLARATION: ${{ inputs.evidence }}
+        ASSURANCE_SHADOW_DESTINATION: ${{ inputs.destination }}
+        ASSURANCE_POLICY: ${{ inputs.policy }}
+        ASSURANCE_TRUST: ${{ inputs.trust }}
+        ASSURANCE_EXPECTED_POLICY: ${{ inputs.expected-policy-digest }}
+        ASSURANCE_EXPECTED_TRUST: ${{ inputs.expected-trust-digest }}
+        ASSURANCE_EXPECTED_REPOSITORY: ${{ inputs.expected-repository }}
+        ASSURANCE_EXPECTED_ENVIRONMENT: ${{ inputs.expected-environment }}
+        ASSURANCE_CHANGE_ID: ${{ inputs.change-id }}
+        ASSURANCE_INTENT_ID: ${{ inputs.intent-id }}
+        ASSURANCE_INTENT_DIGEST: ${{ inputs.intent-digest }}
+        ASSURANCE_PRODUCER_PRINCIPAL: ${{ inputs.producer-principal-id }}
+        ASSURANCE_PRODUCER_OWNER: ${{ inputs.producer-owner-id }}
+        ASSURANCE_PRODUCER_CONTROL_DOMAIN: ${{ inputs.producer-control-domain }}
+      run: node "${{ github.action_path }}/../src/prepare-shadow-bundle.mjs"

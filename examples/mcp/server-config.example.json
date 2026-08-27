@@ -1,0 +1,27 @@
+{
+  "$schema": "https://assurance.sprintloop.ai/schemas/mcp-server-config.v1.schema.json",
+  "schemaVersion": "assurance.sprintloop.dev/mcp-server-config/v1",
+  "roots": [
+    {
+      "id": "bundle",
+      "kind": "bundle",
+      "path": "/srv/sprintloop-assurance/bundles/current"
+    },
+    {
+      "id": "receiver",
+      "kind": "receiver",
+      "path": "/srv/sprintloop-assurance/receiver"
+    },
+    {
+      "id": "dossiers",
+      "kind": "dossier",
+      "path": "/srv/sprintloop-assurance/dossiers"
+    }
+  ],
+  "limits": {
+    "maxMessageBytes": 1048576,
+    "maxJsonBytes": 1048576,
+    "maxDossierBytes": 67108864,
+    "maxToolCalls": 256
+  }
+}

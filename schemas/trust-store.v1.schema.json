@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://assurance.sprintloop.dev/schemas/trust-store.v1.schema.json",
+  "$id": "https://assurance.sprintloop.ai/schemas/trust-store.v1.schema.json",
   "title": "SprintLoop receiver-owned trust store v1",
   "type": "object",
   "additionalProperties": false,
@@ -21,7 +21,7 @@
           "ownerId": { "$ref": "#/$defs/id" },
           "controlDomain": { "$ref": "#/$defs/id" },
           "roles": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["verifier", "authority"] } },
-          "publicKeyPem": { "type": "string", "minLength": 1 },
+          "publicKeyPem": { "type": "string", "maxLength": 4096, "pattern": "^-----BEGIN PUBLIC KEY-----\\r?\\n(?:[A-Za-z0-9+/=]{1,64}\\r?\\n)+-----END PUBLIC KEY-----\\r?\\n?$" },
           "validFrom": { "type": "string", "format": "date-time" },
           "validUntil": { "type": "string", "format": "date-time" },
           "revokedAt": { "type": "string", "format": "date-time" }

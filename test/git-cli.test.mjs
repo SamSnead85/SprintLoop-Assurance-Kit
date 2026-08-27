@@ -50,6 +50,14 @@ test('CLI check binds required candidate to actual Git HEAD, tree, and clean tra
     assert.equal(passing.status, 0, `${passing.stdout}\n${passing.stderr}`);
     assert.equal(JSON.parse(await readFile(passingDossier, 'utf8')).decision.conclusion, 'PASS');
 
+    const jsonDossier = path.join(input, 'json-dossier.json');
+    const machine = spawnSync(process.execPath, [...common, '--dossier', jsonDossier, '--json'], { cwd: kitRoot, encoding: 'utf8' });
+    assert.equal(machine.status, 0, `${machine.stdout}\n${machine.stderr}`);
+    const machineResult = JSON.parse(machine.stdout);
+    assert.equal(machineResult.decision.conclusion, 'PASS');
+    assert.equal(machineResult.dossier, jsonDossier);
+    assert.match(machineResult.dossierDigest, /^sha256:[0-9a-f]{64}$/);
+
     await writeFile(path.join(repositoryRoot, 'service.txt'), 'tracked tree changed\n');
     const blockedDossier = path.join(input, 'blocked-dossier.json');
     const blocked = spawnSync(process.execPath, [...common, '--dossier', blockedDossier], { cwd: kitRoot, encoding: 'utf8' });

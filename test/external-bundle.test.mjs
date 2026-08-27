@@ -9,6 +9,8 @@ import { createExampleBundle, writeExampleBundle } from '../src/example.mjs';
 import { writeJsonAtomic } from '../src/io.mjs';
 import { materializeExternalBundle } from '../src/materialize-bundle.mjs';
 
+const kitRoot = path.resolve(import.meta.dirname, '..');
+
 test('external bundle materializes outside the exact candidate and protected receiver configuration', async () => {
   await withExternalBundle(async (fixture) => {
     const output = await materializeExternalBundle(fixture.options);
@@ -114,6 +116,34 @@ test('external bundle preflight fails closed on missing, candidate-local, and ex
       }),
       /evidence count exceeds/,
     );
+  });
+});
+
+test('materializer wrapper escapes hostile provider filenames before writing GitHub logs', async () => {
+  await withExternalBundle(async (fixture) => {
+    const hostileName = 'forged\n::error title=attacker::owned.txt';
+    await writeFile(path.join(fixture.inbox, hostileName), 'undeclared\n');
+    const result = spawnSync(process.execPath, ['src/materialize-bundle.mjs'], {
+      cwd: kitRoot,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        ASSURANCE_BUNDLE_SOURCE: fixture.options.source,
+        ASSURANCE_BUNDLE_DESTINATION: fixture.options.destination,
+        ASSURANCE_CANDIDATE_ROOT: fixture.options.candidateRoot,
+        ASSURANCE_CANDIDATE: fixture.options.candidate,
+        ASSURANCE_POLICY: fixture.options.policyPath,
+        ASSURANCE_TRUST: fixture.options.trustPath,
+        ASSURANCE_EXPECTED_POLICY: fixture.options.expectedPolicyDigest,
+        ASSURANCE_EXPECTED_TRUST: fixture.options.expectedTrustStoreDigest,
+        ASSURANCE_EXPECTED_REPOSITORY: fixture.options.expectedRepository,
+        ASSURANCE_EXPECTED_ENVIRONMENT: fixture.options.expectedEnvironment,
+      },
+    });
+    assert.equal(result.status, 2);
+    assert.equal((result.stderr.match(/\n/g) ?? []).length, 1, result.stderr);
+    assert.doesNotMatch(result.stderr, /::(?:error|warning|notice|debug|group|endgroup|add-mask|stop-commands)/i);
+    assert.doesNotMatch(result.stderr.slice(0, -1), /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/u);
   });
 });
 

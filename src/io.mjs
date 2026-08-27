@@ -1,33 +1,6 @@
-import { constants } from 'node:fs';
-import { appendFile, mkdir, open, rename, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { readHandleBounded } from './bounded.mjs';
-
-export async function readJson(file, { maxBytes = 1_048_576 } = {}) {
-  const handle = await open(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
-  try {
-    const before = await handle.stat();
-    if (!before.isFile()) throw new Error(`JSON input is not a regular file: ${file}`);
-    if (before.size > maxBytes) throw new Error(`JSON input exceeds ${maxBytes} bytes: ${file}`);
-    const bytes = await readHandleBounded(handle, maxBytes);
-    const after = await handle.stat();
-    if (before.dev !== after.dev || before.ino !== after.ino || before.size !== after.size || before.mtimeMs !== after.mtimeMs || bytes.length !== after.size) {
-      throw new Error(`JSON input changed during read: ${file}`);
-    }
-    return JSON.parse(bytes.toString('utf8'));
-  } finally {
-    await handle.close();
-  }
-}
-
-export async function readOptionalJson(file, options) {
-  try {
-    return await readJson(file, options);
-  } catch (error) {
-    if (error?.code === 'ENOENT') return null;
-    throw error;
-  }
-}
+export { readJson, readOptionalJson } from './read-json.mjs';
 
 export async function writeJsonAtomic(file, value) {
   const absolute = path.resolve(file);
@@ -46,6 +19,15 @@ export async function writeTextExclusive(file, value) {
 export async function appendGithubOutput(file, values) {
   const lines = Object.entries(values).map(([key, value]) => `${key}=${escapeWorkflowValue(String(value))}`);
   await appendFile(file, `${lines.join('\n')}\n`, 'utf8');
+}
+
+export function safeLogMessage(error, { maxLength = 4096 } = {}) {
+  const message = error instanceof Error ? error.message : 'Unknown failure';
+  return JSON.stringify(String(message).slice(0, maxLength))
+    .replaceAll('%', '\\u0025')
+    .replaceAll('::', '\\u003a\\u003a')
+    .replaceAll('\u2028', '\\u2028')
+    .replaceAll('\u2029', '\\u2029');
 }
 
 function escapeWorkflowValue(value) {

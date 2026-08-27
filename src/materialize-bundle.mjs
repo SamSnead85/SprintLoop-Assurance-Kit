@@ -1,16 +1,15 @@
 #!/usr/bin/env node
 
 import { createHash } from 'node:crypto';
-import { execFile } from 'node:child_process';
 import { constants, realpathSync } from 'node:fs';
 import { lstat, mkdir, mkdtemp, open, readdir, realpath, rename, rm } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { readHandleBounded } from './bounded.mjs';
 import { documentDigest } from './canonical.mjs';
-import { appendGithubOutput, readJson, writeJsonAtomic } from './io.mjs';
+import { inspectGitState as inspectReceiverGitState } from './git-state.mjs';
+import { appendGithubOutput, readJson, safeLogMessage, writeJsonAtomic } from './io.mjs';
 import {
   validateAuthorization,
   validateManifest,
@@ -19,7 +18,6 @@ import {
   validateTrustStore,
 } from './validate.mjs';
 
-const execFileAsync = promisify(execFile);
 const DOCUMENTS = {
   manifest: 'manifest.json',
   receipt: 'verifier-receipt.json',
@@ -232,15 +230,11 @@ async function requireExactSourceInventory(root, allowed) {
 }
 
 async function inspectGitState(root) {
-  const [{ stdout: head }, { stdout: tree }, { stdout: status }] = await Promise.all([
-    execFileAsync('git', ['-C', root, 'rev-parse', '--verify', 'HEAD'], { encoding: 'utf8' }),
-    execFileAsync('git', ['-C', root, 'rev-parse', '--verify', 'HEAD^{tree}'], { encoding: 'utf8' }),
-    execFileAsync('git', ['-C', root, 'status', '--porcelain=v1', '--untracked-files=no'], { encoding: 'utf8' }),
-  ]);
+  const state = await inspectReceiverGitState(root);
   return {
-    candidateDigest: normalizeCandidate(head.trim()),
-    treeDigest: normalizeTree(tree.trim()),
-    workingTreeClean: status.trim().length === 0,
+    candidateDigest: normalizeCandidate(state.head),
+    treeDigest: normalizeTree(state.tree),
+    workingTreeClean: state.workingTreeClean,
   };
 }
 
@@ -344,7 +338,7 @@ async function main(environment = process.env) {
     process.stdout.write(`External assurance bundle materialized at ${result.bundleRoot}\n`);
     return 0;
   } catch (error) {
-    process.stderr.write(`Bundle materialization failed closed: ${error.message}\n`);
+    process.stderr.write(`Bundle materialization failed closed: ${safeLogMessage(error)}\n`);
     return 2;
   }
 }

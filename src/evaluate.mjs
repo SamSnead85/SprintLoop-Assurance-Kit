@@ -1,5 +1,5 @@
 import { documentDigest } from './canonical.mjs';
-import { verifyDocumentSignature } from './crypto.mjs';
+import { verifyDocumentSignature } from './verify-signature.mjs';
 import {
   validateAuthorization,
   validateManifest,

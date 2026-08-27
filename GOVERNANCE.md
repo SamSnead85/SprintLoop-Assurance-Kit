@@ -24,4 +24,4 @@ Security fixes may be prepared privately and disclosed after a patched release. 
 
 ## Releases
 
-Release owners must review the lockfile, license, source inventory, sensitive-data scan, tests, fixture gate, SBOM, package inventory, full clean source revision, release subject, and `SHA256SUMS`. Version 0.1 is GitHub-only and `private:true`; npm publication is structurally blocked. The current workflow creates an unpublished candidate only; adding any publication requires a separately reviewed governance decision.
+Release owners must review the lockfile, license, source inventory, sensitive-data scan, tests, fixture gate, SBOM, package inventory, full clean source revision, package release record, and `SHA256SUMS`. Pre-1.0 versions are GitHub-only and `private:true`; npm publication is structurally blocked. The current workflow creates an unpublished candidate only; adding any publication requires a separately reviewed governance decision.

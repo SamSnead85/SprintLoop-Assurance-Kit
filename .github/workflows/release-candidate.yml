@@ -21,13 +21,13 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Test, scan, inventory, pack, and digest without publishing
         run: npm run release:dry-run
-      - name: Record release subjects in job summary
+      - name: Record package release in job summary
         run: |
           {
             printf '%s\n\n' '## Unpublished GitHub-only release candidate'
             printf '%s\n\n' 'No npm package, release, container, or attestation was published.'
             printf '%s\n' '```json'
-            cat artifacts/release-subject.json
+            cat artifacts/package-release.json
             printf '%s\n\n' '```'
             cat artifacts/release-notes.md
           } >> "$GITHUB_STEP_SUMMARY"

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://assurance.sprintloop.dev/schemas/policy.v1.schema.json",
+  "$id": "https://assurance.sprintloop.ai/schemas/policy.v1.schema.json",
   "title": "SprintLoop receiver-owned assurance policy v1",
   "type": "object",
   "additionalProperties": false,

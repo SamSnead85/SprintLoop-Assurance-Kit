@@ -27,6 +27,7 @@ jobs:
           EXPECTED_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
           PROVIDER_INBOX: ${{ runner.temp }}/assurance-provider-inbox
           RECEIVER_ROOT: ${{ runner.temp }}/assurance-receiver
+          SHADOW_EVIDENCE: ${{ runner.temp }}/assurance-shadow-evidence
         run: |
           set -euo pipefail
           head_sha="$(git rev-parse --verify HEAD)"
@@ -43,6 +44,8 @@ jobs:
           rm "$PROVIDER_INBOX/policy.json" "$PROVIDER_INBOX/trust.json" "$PROVIDER_INBOX/dossier.json"
           policy_digest="$(node src/cli.mjs document-digest --file "$RECEIVER_ROOT/policy.json")"
           trust_digest="$(node src/cli.mjs document-digest --file "$RECEIVER_ROOT/trust.json")"
+          mkdir -p "$SHADOW_EVIDENCE"
+          printf '%s\n' '{"schemaVersion":"sprintloop.remote-shadow/v1","exitCode":0}' > "$SHADOW_EVIDENCE/test-result.json"
           printf 'candidate=%s\npolicy=%s\ntrust=%s\n' \
             "$head_sha" "$policy_digest" "$trust_digest" >> "$GITHUB_OUTPUT"
       - name: Resolve reviewed remote materializer
@@ -80,3 +83,33 @@ jobs:
         env:
           CONCLUSION: ${{ steps.assure.outputs.conclusion }}
         run: test "$CONCLUSION" = PASS
+      - name: Resolve reviewed remote advisory shadow preparer
+        id: shadow
+        uses: SamSnead85/SprintLoop-Assurance-Kit/prepare-shadow-bundle@REPLACE_WITH_FULL_REVIEWED_SHA
+        with:
+          candidate-root: .
+          candidate: ${{ steps.inputs.outputs.candidate }}
+          evidence-root: ${{ runner.temp }}/assurance-shadow-evidence
+          evidence: '[{"id":"evidence:remote-shadow-tests","type":"test-report","path":"test-result.json","mediaType":"application/json"}]'
+          destination: ${{ runner.temp }}/assurance-shadow-bundle
+          policy: ${{ runner.temp }}/assurance-receiver/policy.json
+          trust: ${{ runner.temp }}/assurance-receiver/trust.json
+          expected-policy-digest: ${{ steps.inputs.outputs.policy }}
+          expected-trust-digest: ${{ steps.inputs.outputs.trust }}
+          expected-repository: ${{ github.server_url }}/${{ github.repository }}
+          expected-environment: remote-shadow
+          change-id: change:remote-shadow-smoke
+          intent-id: intent:remote-shadow-smoke
+          intent-digest: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          producer-principal-id: agent:remote-smoke
+          producer-owner-id: team:release-engineering
+          producer-control-domain: github-actions
+      - name: Require remote advisory boundary
+        env:
+          DISPOSITION: ${{ steps.shadow.outputs.disposition }}
+          COMPLETENESS: ${{ steps.shadow.outputs.completeness }}
+          ENFORCEMENT_ELIGIBLE: ${{ steps.shadow.outputs.enforcement-eligible }}
+        run: |
+          test "$DISPOSITION" = HOLD
+          test "$COMPLETENESS" = partial
+          test "$ENFORCEMENT_ELIGIBLE" = false

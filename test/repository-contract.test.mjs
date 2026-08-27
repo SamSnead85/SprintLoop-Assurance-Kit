@@ -55,6 +55,23 @@ test('bundle materializer is an explicit no-fetch fail-closed provider stub', as
   assert.match(implementation, /requireExactSourceInventory/);
   assert.match(implementation, /maxEvidenceItems/);
   assert.match(implementation, /rejectOverlap/);
+  assert.match(implementation, /inspectReceiverGitState/);
+});
+
+test('all exact-candidate entry points use receiver-owned Git observation', async () => {
+  const [cli, materializer, shadow, gitState] = await Promise.all([
+    readFile(path.join(root, 'src/cli.mjs'), 'utf8'),
+    readFile(path.join(root, 'src/materialize-bundle.mjs'), 'utf8'),
+    readFile(path.join(root, 'src/prepare-shadow-bundle.mjs'), 'utf8'),
+    readFile(path.join(root, 'src/git-state.mjs'), 'utf8'),
+  ]);
+  for (const source of [cli, materializer, shadow]) assert.match(source, /inspectReceiverGitState/);
+  assert.match(gitState, /GIT_NO_REPLACE_OBJECTS: '1'/);
+  assert.match(gitState, /GIT_INDEX_FILE: receiverIndex/);
+  assert.match(gitState, /read-tree/);
+  assert.match(gitState, /ls-tree/);
+  assert.match(gitState, /gitBlobDigest/);
+  assert.match(gitState, /createReadStream/);
 });
 
 test('self-dogfood invokes the local composite action for positive and adversarial contexts', async () => {
@@ -109,11 +126,19 @@ test('GitHub-only package and clean-room inventory are structural release requir
   assert.equal(packageJson.private, true);
   assert.equal(packageJson.license, 'MIT');
   assert.ok(packageJson.files.includes('materialize-bundle/'));
+  assert.ok(packageJson.files.includes('prepare-shadow-bundle/'));
   const release = await readFile(path.join(root, 'scripts/release-dry-run.mjs'), 'utf8');
   assert.match(release, /SOURCE-INVENTORY\.md/);
   assert.match(release, /npmPublished: false/);
   assert.match(release, /status.*--porcelain/);
   assert.match(release, /artifacts\/SHA256SUMS/);
   assert.match(release, /actionRevision/);
+  assert.match(release, /eight identical full immutable Action revisions/);
+  assert.match(release, /examples\/github\/shadow-provider\.yml/);
+  assert.match(release, /remote-action-smoke\.yml/);
+  assert.match(release, /src\/cli\.mjs/);
+  assert.match(release, /shadow-provider guide to use the reviewed Action revision/);
+  assert.match(release, /assurance\.sprintloop\.dev\/package-release\/v1/);
+  assert.doesNotMatch(release, /assurance\.sprintloop\.dev\/release-subject\/v1/);
   assert.match(release, /git.*grep/);
 });

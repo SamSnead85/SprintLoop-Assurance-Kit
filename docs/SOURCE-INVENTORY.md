@@ -4,9 +4,9 @@ This inventory defines what may enter the public SprintLoop Assurance Kit reposi
 
 ## Authored source
 
-All JavaScript under `src/`, `bin/`, `scripts/`, and `test/`; all JSON Schemas under `schemas/`; the evaluator and bundle-materializer composite Actions and workflows; examples; decision semantics; provider contract; threat model; integration guidance; and governance documents were authored specifically for this public kit.
+All JavaScript under `src/`, `bin/`, `scripts/`, and `test/`; all JSON Schemas under `schemas/`; the evaluator, bundle-materializer, and advisory shadow-provider composite Actions and workflows; examples; decision semantics; provider contract; threat model; integration guidance; and governance documents were authored specifically for this public kit.
 
-The implementation is a clean, dependency-free Node.js design. No private assurance engine, private service implementation, customer adapter, private repository history, customer configuration, internal operational data, or unresolved-provenance source is copied into this tree.
+The implementation is a clean, dependency-free Node.js design. The model-facing MCP process loads an isolated module graph—not the general signing/write-capable CLI—using dedicated read-only JSON and public-key verification modules. No private assurance engine, private service implementation, customer adapter, private repository history, customer configuration, internal operational data, or unresolved-provenance source is copied into this tree.
 
 ## Design inputs
 
@@ -17,6 +17,8 @@ The kit uses public, non-code conventions and platform interfaces:
 - JSON Schema draft 2020-12 vocabulary
 - SPDX 2.3 document structure for the generated SBOM
 - GitHub composite Action and workflow syntax
+- Model Context Protocol `2026-07-28`, `2025-11-25`, and `2025-06-18` public JSON-RPC/stdio interface conventions
+- JSON Schema draft 2020-12 tool input/output contracts
 - The standard MIT license text
 
 These inputs inform interoperability; they do not contribute copied third-party source code. The only workflow dependency is `actions/checkout`, referenced by an immutable reviewed commit.
@@ -29,7 +31,7 @@ Changing a fixture generator changes signatures because keys are generated afres
 
 ## Generated release artifacts
 
-`artifacts/` is ignored source output. It may contain a demo dossier, SPDX SBOM, npm-format installation tarball used only for local smoke testing, release subject, release notes, and `SHA256SUMS`. These files are not authored source and are regenerated from a clean reviewed commit.
+`artifacts/` is ignored source output. It may contain a demo dossier, SPDX SBOM, npm-format installation tarball used only for local smoke testing, package release record, release notes, and `SHA256SUMS`. These files are not authored source and are regenerated from a clean reviewed commit.
 
 The npm-format tarball is a test and GitHub prerelease artifact. `package.json` is `private:true`; no npm publication is authorized.
 
@@ -42,4 +44,4 @@ The npm-format tarball is a test and GitHub prerelease artifact. `package.json` 
 - Personal names or personal contact details: prohibited
 - Private repository links or internal filesystem paths: prohibited
 
-The release gate requires this inventory, a clean full Git revision, tests, adversarial fixtures, sensitive-data scanning, SBOM generation, package installation smoke, and a deterministic release subject before it can create a release candidate.
+The release gate requires this inventory, a clean full Git revision, tests, adversarial fixtures, sensitive-data scanning, SBOM generation, package installation smoke, and a deterministic package release record before it can create a release candidate.

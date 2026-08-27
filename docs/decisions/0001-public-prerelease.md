@@ -23,6 +23,6 @@ If evaluator, cryptography, materializer, schema, or Action runtime behavior cha
 2. Hosted `verify`, local-source `golden-path`, remote Action resolution, and release-candidate dry-run workflows are green.
 3. The repository is made public without announcement, then private vulnerability reporting, read-only workflow permissions, dependency alerts, secret scanning, push protection, and immutable releases are enabled and verified.
 4. Branch protection requires `verify` and `golden-path`, enforces linear history and conversation resolution, and prohibits force pushes and deletion.
-5. The annotated tag targets the reviewed release source; release assets include the private npm-format installation tarball, SPDX SBOM, release subject, and `SHA256SUMS` generated from that source.
+5. The annotated tag targets the reviewed release source; release assets include the private npm-format installation tarball, SPDX SBOM, package release record, and `SHA256SUMS` generated from that source.
 
 The prerelease remains a pre-1.0 shadow/minimum integration kit. Production enforcement requires separately governed identity, key lifecycle, authenticated exact-coordinate bundle retrieval, repository rules, operational recovery, and customer pilot evidence.

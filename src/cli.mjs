@@ -2,32 +2,31 @@
 
 import { readFile } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
-import { execFile } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
-import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { documentDigest, sha256 } from './canonical.mjs';
 import { signDocument } from './crypto.mjs';
 import { createDossier, verifyDossier } from './dossier.mjs';
 import { createExampleBundle, writeExampleBundle } from './example.mjs';
+import { inspectGitState as inspectReceiverGitState } from './git-state.mjs';
 import {
   appendGithubOutput,
   readJson,
   readOptionalJson,
+  safeLogMessage,
   writeJsonAtomic,
   writeTextExclusive,
 } from './io.mjs';
 
 const EXIT = { PASS: 0, HOLD: 10, BLOCK: 20, ERROR: 2 };
-const execFileAsync = promisify(execFile);
 
 export async function run(argv = process.argv.slice(2), environment = process.env) {
   const [command = 'help', ...rest] = argv;
   const options = parseOptions(rest);
 
   if (command === 'help' || options.help) {
-    process.stdout.write(HELP);
+    process.stdout.write(MCP_HELP);
     return 0;
   }
   if (command === 'digest') return digestCommand(options);
@@ -126,8 +125,16 @@ async function checkCommand(options, environment) {
     embedEvidence: options.embed_evidence === true || options.embed_evidence === 'true',
   });
   await writeJsonAtomic(dossierPath, dossier);
-  emitDecision(dossier.decision, options.json);
-  process.stdout.write(`Dossier: ${dossierPath}\nDigest: ${dossier.dossierDigest}\n`);
+  if (options.json) {
+    process.stdout.write(`${JSON.stringify({
+      decision: dossier.decision,
+      dossier: dossierPath,
+      dossierDigest: dossier.dossierDigest,
+    }, null, 2)}\n`);
+  } else {
+    emitDecision(dossier.decision, false);
+    process.stdout.write(`Dossier: ${dossierPath}\nDigest: ${dossier.dossierDigest}\n`);
+  }
   if (environment.GITHUB_OUTPUT) {
     await appendGithubOutput(environment.GITHUB_OUTPUT, {
       conclusion: dossier.decision.conclusion,
@@ -284,15 +291,11 @@ jobs:
 
 async function inspectGitState(root) {
   try {
-    const [{ stdout: head }, { stdout: tree }, { stdout: status }] = await Promise.all([
-      execFileAsync('git', ['-C', root, 'rev-parse', '--verify', 'HEAD'], { encoding: 'utf8' }),
-      execFileAsync('git', ['-C', root, 'rev-parse', '--verify', 'HEAD^{tree}'], { encoding: 'utf8' }),
-      execFileAsync('git', ['-C', root, 'status', '--porcelain=v1', '--untracked-files=no'], { encoding: 'utf8' }),
-    ]);
+    const state = await inspectReceiverGitState(root);
     return {
-      candidateDigest: normalizeCandidate(head.trim()),
-      treeDigest: normalizeTreeDigest(tree.trim()),
-      workingTreeClean: status.trim().length === 0,
+      candidateDigest: normalizeCandidate(state.head),
+      treeDigest: normalizeTreeDigest(state.tree),
+      workingTreeClean: state.workingTreeClean,
     };
   } catch (error) {
     throw new UsageError(`Cannot resolve an exact Git HEAD and tree at ${root}: ${error.message}`);
@@ -354,12 +357,14 @@ export class UsageError extends Error {}
 
 const HELP = `SprintLoop Assurance Kit\n\nProof before permission for an exact agent-built candidate.\n\nCommands:\n  init [--directory DIR]\n  demo [--out DIR] [--candidate SHA] [--tree-digest TREE] [--repository URL] [--environment NAME]\n  digest --file FILE\n  document-digest --file JSON\n  sign-receipt --input FILE --private-key PEM --key-id ID --output FILE\n  sign-authorization --input FILE --private-key PEM --key-id ID --output FILE\n  check --candidate SHA --expected-policy-digest SHA256 --expected-trust-digest SHA256\n        --expected-repository URL --expected-environment NAME [--git-root DIR] [--evidence-root DIR]\n        [--manifest FILE] [--receipt FILE] [--authorization FILE] [--policy FILE] [--trust FILE]\n        [--dossier FILE] [--embed-evidence] [--at ISO] [--json]\n  verify-dossier --dossier FILE --trust FILE --candidate SHA --tree-digest TREE\n        --working-tree-clean true|false --expected-policy-digest SHA256 --expected-trust-digest SHA256\n        --expected-repository URL --expected-environment NAME [--at ISO] [--json]\n\nExit codes: 0 PASS, 10 HOLD, 20 BLOCK, 2 usage/runtime error.\n`;
 
+const MCP_HELP = HELP.replace('  digest --file FILE\n', '  mcp --config ABSOLUTE_FILE\n  digest --file FILE\n');
+
 export async function main(argv = process.argv.slice(2), environment = process.env) {
   try {
     return await run(argv, environment);
   } catch (error) {
     const prefix = error instanceof UsageError ? 'Usage error' : 'Assurance error';
-    process.stderr.write(`${prefix}: ${error.message}\n`);
+    process.stderr.write(`${prefix}: ${safeLogMessage(error)}\n`);
     return EXIT.ERROR;
   }
 }

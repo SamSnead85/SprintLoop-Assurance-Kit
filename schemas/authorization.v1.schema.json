@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://assurance.sprintloop.dev/schemas/authorization.v1.schema.json",
+  "$id": "https://assurance.sprintloop.ai/schemas/authorization.v1.schema.json",
   "title": "SprintLoop finite release authorization v1",
   "type": "object",
   "additionalProperties": false,
@@ -32,8 +32,8 @@
       "additionalProperties": false,
       "required": ["repository", "environment", "operation"],
       "properties": {
-        "repository": { "type": "string", "minLength": 1 },
-        "environment": { "type": "string", "minLength": 1 },
+        "repository": { "type": "string", "maxLength": 2048, "pattern": "^[A-Za-z][A-Za-z0-9+.-]{0,31}:[^\\s\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]{1,2015}$" },
+        "environment": { "$ref": "#/$defs/id" },
         "operation": { "const": "release" }
       }
     },

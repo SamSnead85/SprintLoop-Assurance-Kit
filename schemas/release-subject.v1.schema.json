@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://assurance.sprintloop.ai/schemas/release-subject.v1.schema.json",
+  "title": "SprintLoop canonical release subject v1",
+  "description": "The receiver-derived exact Git subject shared by the Kit and compatible evidence bridges. Mutable workflow and provider metadata is intentionally excluded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "repository", "environment", "operation", "commitDigest", "treeDigest"],
+  "properties": {
+    "schemaVersion": { "const": "assurance.sprintloop.dev/release-subject/v1" },
+    "repository": { "type": "string", "maxLength": 2048, "pattern": "^[A-Za-z][A-Za-z0-9+.-]{0,31}:[^\\s\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]{1,2015}$" },
+    "environment": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$" },
+    "operation": { "const": "release" },
+    "commitDigest": { "type": "string", "pattern": "^git:(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$" },
+    "treeDigest": { "type": "string", "pattern": "^git-tree:(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$" }
+  }
+}

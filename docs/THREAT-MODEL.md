@@ -43,6 +43,14 @@ It does not secure the systems that create those inputs. The caller must authent
 | Cross-context replay | Valid record is reused in another repository or environment | External repository/environment expectations and exact authorization scope |
 | Head/tree drift | Evaluated files differ from the requested Git object | Direct Git HEAD/tree resolution and clean tracked-tree check at evaluation |
 | Path traversal or symlink escape | Manifest reads arbitrary local files | Relative-path validation, real-path containment, regular-file and size checks |
+| MCP arbitrary file access | A model asks the local server to read host or credential paths | Startup-only logical root grants; absolute/parent/backslash document paths, filesystem-root grants, overlap, symlink components, and out-of-root resolution are rejected; host paths and raw documents are not returned |
+| MCP path swap | A granted path is replaced between validation and read | Symlink-free component walk, real-path containment, pre-open device/inode binding, stable bounded handle read, and post-read path/identity revalidation |
+| Git metadata concealment | Candidate code adds replacement refs, index concealment flags, local filemode overrides, or clean filters to make changed bytes appear clean | Replacement objects disabled; canonical tree inventory; raw no-follow blob/symlink hashing and executable-mode comparison; candidate index and filters excluded from tracked-state observation |
+| MCP authority confusion | An advisory model tool result is treated as release permission | Every tool is annotated/read-only and returns `ADVISORY_READ_ONLY` plus `enforcementEligible: false`; no approval, signing, SCM, check, deploy, or enforcement tool exists |
+| MCP context spoofing | Model-supplied current observations create an apparent pass | Complete explicit current context is mandatory, no dossier/Git fallback exists, and results remain advisory; only a receiver-governed CI/interlock may enforce |
+| MCP stdout or prompt injection | Logs or candidate metadata corrupt framing or steer the inspecting model | Stdout emits newline-delimited JSON-RPC only; diagnostics use stderr; candidate metadata is explicitly untrusted, bounded, control-free, schema-validated inert data; displayed validation/decision text is sanitized and bounded; evidence bytes are never returned |
+| Ambient CLI authority in MCP | A shared binary accidentally loads signing, subprocess, environment, or write-capable modules into the model-facing process | The binary routes `mcp` through a dedicated entry module before importing the general CLI; the tested transitive MCP module graph contains only read operations and public-key verification |
+| MCP protocol exhaustion | Oversized/batched/malformed traffic consumes memory or desynchronizes framing | Pre-parse byte cap, discard-through-newline recovery, UTF-8/JSON-RPC validation, no batching, sequential calls, response cap, and per-process call limit |
 | Dossier disclosure | Embedded evidence leaks sensitive data | Digest-only default, opt-in embedding, classification and retention controls |
 | Stored-context replay | A dossier's historical context is reused as current receiver intent | Recorded reproduction may use stored context; current standing requires an external candidate and complete receiver context or returns `BLOCK` |
 | Historical rewrite | Recorded decision is changed | Canonical input/dossier digests and reproducible recorded evaluation |
@@ -57,6 +65,7 @@ It does not secure the systems that create those inputs. The caller must authent
 - Git object integrity is provided by the caller's Git implementation; the kit binds the supplied canonical Git digest.
 - A valid dossier is evidence of the configured evaluation, not proof that the software has no vulnerabilities.
 - Local clock correctness is an operator responsibility.
+- The Kit MCP server is local stdio only. It does not claim the OAuth, audience binding, tenant isolation, authorization, or audit controls required for a managed remote MCP endpoint.
 
 ## Production checklist
 
@@ -70,3 +79,5 @@ It does not secure the systems that create those inputs. The caller must authent
 - Exercise revocation, expiry, recovery, and candidate-drift scenarios before enforcement.
 - Export digest-only dossiers by default; explicitly approve embedded evidence.
 - Obtain security and legal review appropriate to the deployment's risk.
+- Configure MCP with narrow, read-only, non-overlapping bundle/receiver/dossier directories; never a home, credential, repository, or general workspace root. Root and document device/inode identities are revalidated to reject path replacement during the server lifetime.
+- Keep MCP advisory. Do not make a model-controlled MCP result the required status or deployment authorization source.

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://assurance.sprintloop.dev/schemas/dossier.v1.schema.json",
+  "$id": "https://assurance.sprintloop.ai/schemas/dossier.v1.schema.json",
   "title": "SprintLoop portable assurance dossier v1",
   "type": "object",
   "additionalProperties": false,
@@ -48,9 +48,9 @@
         "additionalProperties": false,
         "required": ["id", "path", "mediaType", "digest", "encoding", "data"],
         "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "path": { "type": "string", "minLength": 1 },
-          "mediaType": { "type": "string", "minLength": 1 },
+          "id": { "$ref": "#/$defs/id" },
+          "path": { "type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]).+$" },
+          "mediaType": { "type": "string", "maxLength": 255, "pattern": "^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,127}/[A-Za-z0-9!#$%&'*+.^_`|~-]{1,127}$" },
           "digest": { "$ref": "#/$defs/sha256" },
           "encoding": { "const": "base64" },
           "data": { "type": "string", "contentEncoding": "base64" }
@@ -61,6 +61,7 @@
     "dossierDigest": { "$ref": "#/$defs/sha256" }
   },
   "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$" },
     "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
     "receiverContext": {
       "type": "object",
@@ -69,8 +70,8 @@
       "properties": {
         "expectedPolicyDigest": { "$ref": "#/$defs/sha256" },
         "expectedTrustStoreDigest": { "$ref": "#/$defs/sha256" },
-        "expectedRepository": { "type": "string", "minLength": 1 },
-        "expectedEnvironment": { "type": "string", "minLength": 1 },
+        "expectedRepository": { "type": "string", "maxLength": 2048, "pattern": "^[A-Za-z][A-Za-z0-9+.-]{0,31}:[^\\s\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]{1,2015}$" },
+        "expectedEnvironment": { "$ref": "#/$defs/id" },
         "actualCandidateDigest": { "type": "string", "pattern": "^git:(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$" },
         "actualTreeDigest": { "type": "string", "pattern": "^git-tree:(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$" },
         "workingTreeClean": { "type": "boolean" }

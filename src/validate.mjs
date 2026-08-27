@@ -3,6 +3,10 @@ const SUBJECT = /^git:(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$/;
 const TREE = /^git-tree:(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$/;
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
 const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+const CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/u;
+const URI = /^[A-Za-z][A-Za-z0-9+.-]{0,31}:[^\s\u0000-\u001f\u007f-\u009f\u2028\u2029]{1,2015}$/u;
+const MEDIA_TYPE = /^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,127}\/[A-Za-z0-9!#$%&'*+.^_`|~-]{1,127}$/;
+const PUBLIC_KEY_PEM = /^-----BEGIN PUBLIC KEY-----\r?\n(?:[A-Za-z0-9+/=]{1,64}\r?\n)+-----END PUBLIC KEY-----\r?\n?$/;
 
 function object(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -16,6 +20,21 @@ function id(value) {
   return typeof value === 'string' && ID.test(value);
 }
 
+function repository(value) {
+  return typeof value === 'string' && value.length <= 2048 && URI.test(value);
+}
+
+function relativePath(value) {
+  if (typeof value !== 'string' || value.length < 1 || value.length > 1024 || CONTROL.test(value)
+    || value.startsWith('/') || value.includes('\\')) return false;
+  const segments = value.split('/');
+  return !segments.some((segment) => !segment || segment === '.' || segment === '..');
+}
+
+function mediaType(value) {
+  return typeof value === 'string' && value.length <= 255 && MEDIA_TYPE.test(value);
+}
+
 function iso(value) {
   return typeof value === 'string' && ISO_UTC.test(value) && Number.isFinite(Date.parse(value));
 }
@@ -27,7 +46,7 @@ function unique(values) {
 function exactKeys(value, allowed, path, errors) {
   if (!object(value)) return;
   for (const key of Object.keys(value)) {
-    if (!allowed.includes(key)) errors.push(`${path}.${key}: unexpected property`);
+    if (!allowed.includes(key)) errors.push(`${path}: unexpected property`);
   }
 }
 
@@ -49,10 +68,10 @@ export function validateManifest(value) {
   if (!object(value.candidate)) errors.push('candidate');
   else {
     exactKeys(value.candidate, ['repository', 'digest', 'treeDigest', 'environment', 'producer'], 'candidate', errors);
-    if (!text(value.candidate.repository)) errors.push('candidate.repository');
+    if (!repository(value.candidate.repository)) errors.push('candidate.repository');
     if (!SUBJECT.test(value.candidate.digest ?? '')) errors.push('candidate.digest');
     if (!TREE.test(value.candidate.treeDigest ?? '')) errors.push('candidate.treeDigest');
-    if (!text(value.candidate.environment)) errors.push('candidate.environment');
+    if (!id(value.candidate.environment)) errors.push('candidate.environment');
     if (!object(value.candidate.producer)) errors.push('candidate.producer');
     else {
       exactKeys(value.candidate.producer, ['principalId', 'ownerId', 'controlDomain'], 'candidate.producer', errors);
@@ -75,12 +94,10 @@ export function validateManifest(value) {
       ids.push(item.id);
       if (!id(item.id)) errors.push(`evidence[${index}].id`);
       if (!id(item.type)) errors.push(`evidence[${index}].type`);
-      if (!text(item.path) || item.path.includes('\\') || item.path.startsWith('/') || item.path.split('/').includes('..')) {
-        errors.push(`evidence[${index}].path`);
-      }
+      if (!relativePath(item.path)) errors.push(`evidence[${index}].path`);
       if (!SHA256.test(item.digest ?? '')) errors.push(`evidence[${index}].digest`);
       if (item.subjectDigest !== value.candidate?.digest) errors.push(`evidence[${index}].subjectDigest`);
-      if (!text(item.mediaType)) errors.push(`evidence[${index}].mediaType`);
+      if (!mediaType(item.mediaType)) errors.push(`evidence[${index}].mediaType`);
     }
     if (!unique(ids)) errors.push('evidence ids must be unique');
   }
@@ -140,7 +157,7 @@ export function validateAuthorization(value) {
     if (!text(value.authority.role)) errors.push('authority.role');
     if (!['human', 'service'].includes(value.authority.kind)) errors.push('authority.kind');
   }
-  if (!object(value.scope) || !text(value.scope.repository) || !text(value.scope.environment) || value.scope.operation !== 'release') errors.push('scope');
+  if (!object(value.scope) || !repository(value.scope.repository) || !id(value.scope.environment) || value.scope.operation !== 'release') errors.push('scope');
   else exactKeys(value.scope, ['repository', 'environment', 'operation'], 'scope', errors);
   if (!iso(value.issuedAt)) errors.push('issuedAt');
   if (!iso(value.expiresAt)) errors.push('expiresAt');
@@ -201,7 +218,9 @@ export function validateTrustStore(value) {
       if (!id(key.ownerId)) errors.push(`keys[${index}].ownerId`);
       if (!id(key.controlDomain)) errors.push(`keys[${index}].controlDomain`);
       if (!Array.isArray(key.roles) || !key.roles.every((role) => ['verifier', 'authority'].includes(role)) || !unique(key.roles)) errors.push(`keys[${index}].roles`);
-      if (typeof key.publicKeyPem !== 'string' || !key.publicKeyPem.includes('BEGIN PUBLIC KEY')) errors.push(`keys[${index}].publicKeyPem`);
+      if (typeof key.publicKeyPem !== 'string' || key.publicKeyPem.length > 4096 || !PUBLIC_KEY_PEM.test(key.publicKeyPem)) {
+        errors.push(`keys[${index}].publicKeyPem`);
+      }
       if (key.validFrom !== undefined && !iso(key.validFrom)) errors.push(`keys[${index}].validFrom`);
       if (key.validUntil !== undefined && !iso(key.validUntil)) errors.push(`keys[${index}].validUntil`);
       if (key.revokedAt !== undefined && !iso(key.revokedAt)) errors.push(`keys[${index}].revokedAt`);
@@ -217,8 +236,8 @@ export function validateReceiverContext(value) {
   exactKeys(value, ['expectedPolicyDigest', 'expectedTrustStoreDigest', 'expectedRepository', 'expectedEnvironment', 'actualCandidateDigest', 'actualTreeDigest', 'workingTreeClean'], 'receiver', errors);
   if (!SHA256.test(value.expectedPolicyDigest ?? '')) errors.push('expectedPolicyDigest');
   if (!SHA256.test(value.expectedTrustStoreDigest ?? '')) errors.push('expectedTrustStoreDigest');
-  if (!text(value.expectedRepository)) errors.push('expectedRepository');
-  if (!text(value.expectedEnvironment)) errors.push('expectedEnvironment');
+  if (!repository(value.expectedRepository)) errors.push('expectedRepository');
+  if (!id(value.expectedEnvironment)) errors.push('expectedEnvironment');
   if (!SUBJECT.test(value.actualCandidateDigest ?? '')) errors.push('actualCandidateDigest');
   if (!TREE.test(value.actualTreeDigest ?? '')) errors.push('actualTreeDigest');
   if (typeof value.workingTreeClean !== 'boolean') errors.push('workingTreeClean');
@@ -256,7 +275,7 @@ export function validateDossier(value) {
         continue;
       }
       exactKeys(attachment, ['id', 'path', 'mediaType', 'digest', 'encoding', 'data'], `attachments[${index}]`, errors);
-      if (!id(attachment.id) || !text(attachment.path) || !text(attachment.mediaType) || !SHA256.test(attachment.digest ?? '')
+      if (!id(attachment.id) || !relativePath(attachment.path) || !mediaType(attachment.mediaType) || !SHA256.test(attachment.digest ?? '')
         || attachment.encoding !== 'base64' || typeof attachment.data !== 'string') errors.push(`attachments[${index}]`);
     }
   }

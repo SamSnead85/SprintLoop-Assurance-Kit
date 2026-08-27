@@ -4,6 +4,24 @@ export { signDocument, verifyDocumentSignature } from './crypto.mjs';
 export { createDossier, verifyDossier } from './dossier.mjs';
 export { evaluateAssurance } from './evaluate.mjs';
 export {
+  DEFAULT_MCP_LIMITS,
+  MCP_CONFIG_SCHEMA_VERSION,
+  loadMcpConfig,
+  publicMcpConfig,
+  validateMcpConfig,
+} from './mcp-config.mjs';
+export { AssuranceMcpServer, runMcpStdioServer } from './mcp-server.mjs';
+export { validateJsonSchema } from './schema-check.mjs';
+export {
+  LEGACY_MCP_VERSIONS,
+  MCP_SERVER_VERSION,
+  MODERN_MCP_VERSION,
+  SUPPORTED_MCP_VERSIONS,
+  callMcpTool,
+  explainReasonCode,
+  listMcpTools,
+} from './mcp-tools.mjs';
+export {
   validateAuthorization,
   validateDossier,
   validateManifest,
