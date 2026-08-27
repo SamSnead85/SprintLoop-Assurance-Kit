@@ -6,7 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 const root = path.resolve(import.meta.dirname, '..');
-const ACTION_REVISION = '0d3f6f0a27f7244d0ec0eb6d924df191b6180a0a';
+const ACTION_REVISION = '9194e6181651c81fa101e6a4aa38d87a4891f0b4';
 const CHECKOUT_REVISION = '3d3c42e5aac5ba805825da76410c181273ba90b1';
 const SETUP_NODE_REVISION = '820762786026740c76f36085b0efc47a31fe5020';
 

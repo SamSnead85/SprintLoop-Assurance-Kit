@@ -44,7 +44,7 @@ jobs:
       # and fails closed when the external bundle is absent or misbound.
       - name: Require authenticated out-of-band bundle
         id: bundle
-        uses: SamSnead85/SprintLoop-Assurance-Kit/materialize-bundle@0d3f6f0a27f7244d0ec0eb6d924df191b6180a0a
+        uses: SamSnead85/SprintLoop-Assurance-Kit/materialize-bundle@9194e6181651c81fa101e6a4aa38d87a4891f0b4
         with:
           source: ${{ runner.temp }}/assurance-provider-inbox
           destination: ${{ runner.temp }}/assurance-bundle
@@ -57,7 +57,7 @@ jobs:
           expected-repository: ${{ github.server_url }}/${{ github.repository }}
           expected-environment: ${{ vars.ASSURANCE_ENVIRONMENT }}
       - name: Evaluate in shadow mode
-        uses: SamSnead85/SprintLoop-Assurance-Kit@0d3f6f0a27f7244d0ec0eb6d924df191b6180a0a
+        uses: SamSnead85/SprintLoop-Assurance-Kit@9194e6181651c81fa101e6a4aa38d87a4891f0b4
         with:
           candidate: ${{ github.event.pull_request.head.sha }}
           candidate-root: candidate

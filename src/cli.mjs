@@ -357,7 +357,7 @@ jobs:
       # runner-temp inbox. The checked stub performs no network or credential work.
       - name: Require authenticated out-of-band bundle
         id: bundle
-        uses: SamSnead85/SprintLoop-Assurance-Kit/materialize-bundle@0d3f6f0a27f7244d0ec0eb6d924df191b6180a0a
+        uses: SamSnead85/SprintLoop-Assurance-Kit/materialize-bundle@9194e6181651c81fa101e6a4aa38d87a4891f0b4
         with:
           source: \${{ runner.temp }}/assurance-provider-inbox
           destination: \${{ runner.temp }}/assurance-bundle
@@ -371,7 +371,7 @@ jobs:
           expected-environment: \${{ vars.ASSURANCE_ENVIRONMENT }}
       # Shadow/minimum integration only. Pin both Actions to one reviewed commit.
       - name: Evaluate exact candidate
-        uses: SamSnead85/SprintLoop-Assurance-Kit@0d3f6f0a27f7244d0ec0eb6d924df191b6180a0a
+        uses: SamSnead85/SprintLoop-Assurance-Kit@9194e6181651c81fa101e6a4aa38d87a4891f0b4
         with:
           candidate: \${{ github.event.pull_request.head.sha }}
           candidate-root: candidate

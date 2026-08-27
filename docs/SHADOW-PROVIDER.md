@@ -139,7 +139,7 @@ jobs:
 
       - name: Prepare partial shadow evidence — always HOLD
         id: shadow
-        uses: SamSnead85/SprintLoop-Assurance-Kit/prepare-shadow-bundle@0d3f6f0a27f7244d0ec0eb6d924df191b6180a0a
+        uses: SamSnead85/SprintLoop-Assurance-Kit/prepare-shadow-bundle@9194e6181651c81fa101e6a4aa38d87a4891f0b4
         with:
           candidate-root: candidate
           candidate: ${{ steps.candidate.outputs.sha }}

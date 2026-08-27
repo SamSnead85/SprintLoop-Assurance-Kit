@@ -14,7 +14,7 @@
 
 Copy [assurance.yml](assurance.yml) into `.github/workflows/assurance.yml` and add the authenticated retrieval step before `Require authenticated out-of-band bundle`. On a fresh runner the checked materializer finds no inbox and exits nonzero by design; it is not a fetcher.
 
-All SprintLoop Assurance Kit Actions are pinned to reviewed v0.3 implementation revision `0d3f6f0a27f7244d0ec0eb6d924df191b6180a0a`. Keep those references identical and immutable; do not replace them with a branch or tag. The workflow separately pins official checkout and setup actions to reviewed full commits, installs Node 24.20.0 with caches and mirror credentials disabled, and rejects runtime drift before invoking the Kit.
+All SprintLoop Assurance Kit Actions are pinned to reviewed v0.3 implementation revision `9194e6181651c81fa101e6a4aa38d87a4891f0b4`. Keep those references identical and immutable; do not replace them with a branch or tag. The workflow separately pins official checkout and setup actions to reviewed full commits, installs Node 24.20.0 with caches and mirror credentials disabled, and rejects runtime drift before invoking the Kit.
 
 The inbox contract is `manifest.json`, `verifier-receipt.json`, `authorization.json`, and only manifest-relative evidence. It excludes policy, trust, credentials, private keys, and dossiers. Do not use a mutable `latest` object, a candidate-supplied locator, or candidate-local fallback. See [the provider contract](../../docs/BUNDLE-PROVIDER-CONTRACT.md).
 

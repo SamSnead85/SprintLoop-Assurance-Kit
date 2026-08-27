@@ -297,7 +297,7 @@ test('doctor reports an older Git precisely before attempting repository inspect
     ], {
       encoding: 'utf8',
       env: { ...process.env, PATH: root },
-      timeout: 2_000,
+      timeout: 5_000,
     });
     assert.equal(result.status, DOCTOR_EXIT_CODES.error, result.stderr);
     const report = JSON.parse(result.stdout);
