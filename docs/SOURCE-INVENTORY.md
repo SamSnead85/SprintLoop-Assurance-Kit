@@ -26,7 +26,7 @@ The kit uses public, non-code conventions and platform interfaces:
 - JSON Schema draft 2020-12 tool input/output contracts
 - The standard MIT license text
 
-These inputs inform interoperability; they do not contribute copied third-party source code. The only workflow dependency is `actions/checkout`, referenced by an immutable reviewed commit.
+These inputs inform interoperability; they do not contribute copied third-party source code. Workflow dependencies are limited to `actions/checkout` and `actions/setup-node`; both are referenced by immutable reviewed commits. Setup uses exact maintained Node versions with package-manager caching and mirror credentials disabled.
 
 ## Generated fixtures
 
