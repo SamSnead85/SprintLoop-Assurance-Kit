@@ -1,0 +1,82 @@
+name: Remote Action smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  remote-action:
+    name: remote-action
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Require supported Node runtime
+        run: node -e "const [major,minor]=process.versions.node.split('.').map(Number);if(major<20||(major===20&&minor<11)||major>=25)process.exit(1)"
+      - name: Install without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Build out-of-tree fixture inputs
+        id: inputs
+        env:
+          EXPECTED_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
+          PROVIDER_INBOX: ${{ runner.temp }}/assurance-provider-inbox
+          RECEIVER_ROOT: ${{ runner.temp }}/assurance-receiver
+        run: |
+          set -euo pipefail
+          head_sha="$(git rev-parse --verify HEAD)"
+          tree_sha="$(git rev-parse --verify 'HEAD^{tree}')"
+          mkdir -p "$RECEIVER_ROOT"
+          node src/cli.mjs demo \
+            --out "$PROVIDER_INBOX" \
+            --candidate "$head_sha" \
+            --tree-digest "$tree_sha" \
+            --repository "$EXPECTED_REPOSITORY" \
+            --environment remote-smoke
+          cp "$PROVIDER_INBOX/policy.json" "$RECEIVER_ROOT/policy.json"
+          cp "$PROVIDER_INBOX/trust.json" "$RECEIVER_ROOT/trust.json"
+          rm "$PROVIDER_INBOX/policy.json" "$PROVIDER_INBOX/trust.json" "$PROVIDER_INBOX/dossier.json"
+          policy_digest="$(node src/cli.mjs document-digest --file "$RECEIVER_ROOT/policy.json")"
+          trust_digest="$(node src/cli.mjs document-digest --file "$RECEIVER_ROOT/trust.json")"
+          printf 'candidate=%s\npolicy=%s\ntrust=%s\n' \
+            "$head_sha" "$policy_digest" "$trust_digest" >> "$GITHUB_OUTPUT"
+      - name: Resolve reviewed remote materializer
+        id: bundle
+        uses: SamSnead85/SprintLoop-Assurance-Kit/materialize-bundle@d5307358ce6a39d12de025748cb0676acbe461bf
+        with:
+          source: ${{ runner.temp }}/assurance-provider-inbox
+          destination: ${{ runner.temp }}/assurance-bundle
+          candidate-root: .
+          candidate: ${{ steps.inputs.outputs.candidate }}
+          policy: ${{ runner.temp }}/assurance-receiver/policy.json
+          trust: ${{ runner.temp }}/assurance-receiver/trust.json
+          expected-policy-digest: ${{ steps.inputs.outputs.policy }}
+          expected-trust-digest: ${{ steps.inputs.outputs.trust }}
+          expected-repository: ${{ github.server_url }}/${{ github.repository }}
+          expected-environment: remote-smoke
+      - name: Resolve reviewed remote evaluator
+        id: assure
+        uses: SamSnead85/SprintLoop-Assurance-Kit@d5307358ce6a39d12de025748cb0676acbe461bf
+        with:
+          candidate: ${{ steps.inputs.outputs.candidate }}
+          candidate-root: .
+          evidence-root: ${{ steps.bundle.outputs.evidence-root }}
+          manifest: ${{ steps.bundle.outputs.manifest }}
+          receipt: ${{ steps.bundle.outputs.receipt }}
+          authorization: ${{ steps.bundle.outputs.authorization }}
+          policy: ${{ runner.temp }}/assurance-receiver/policy.json
+          trust: ${{ runner.temp }}/assurance-receiver/trust.json
+          expected-policy-digest: ${{ steps.inputs.outputs.policy }}
+          expected-trust-digest: ${{ steps.inputs.outputs.trust }}
+          expected-repository: ${{ github.server_url }}/${{ github.repository }}
+          expected-environment: remote-smoke
+          dossier: ${{ runner.temp }}/remote-action-dossier.json
+      - name: Require remote PASS
+        env:
+          CONCLUSION: ${{ steps.assure.outputs.conclusion }}
+        run: test "$CONCLUSION" = PASS

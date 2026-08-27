@@ -4,6 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 const root = path.resolve(import.meta.dirname, '..');
+const ACTION_REVISION = 'd5307358ce6a39d12de025748cb0676acbe461bf';
 
 test('composite Action requires the complete protected receiver context', async () => {
   const action = await readFile(path.join(root, 'action.yml'), 'utf8');
@@ -71,6 +72,7 @@ test('self-dogfood invokes the local composite action for positive and adversari
 test('all workflow checkouts disable credential persistence and runners are fixed', async () => {
   for (const relative of [
     '.github/workflows/ci.yml',
+    '.github/workflows/remote-action-smoke.yml',
     '.github/workflows/self-dogfood.yml',
     '.github/workflows/release-candidate.yml',
     'examples/github/assurance.yml',
@@ -86,11 +88,20 @@ test('all workflow checkouts disable credential persistence and runners are fixe
   assert.match(example, /repository: \$\{\{ github\.repository \}\}/);
   assert.match(example, /sparse-checkout:\s*\|\s*\.assurance\/policy\.json\s*\.assurance\/trust\.json/);
   assert.match(example, /sparse-checkout-cone-mode: false/);
-  assert.match(example, /SprintLoop-Assurance-Kit\/materialize-bundle@REPLACE_WITH_REVIEWED_COMMIT_SHA/);
+  const pins = [...example.matchAll(/SprintLoop-Assurance-Kit(?:\/materialize-bundle)?@([0-9a-f]{40})/g)]
+    .map((match) => match[1]);
+  assert.deepEqual(pins, [ACTION_REVISION, ACTION_REVISION]);
   assert.match(example, /source: \$\{\{ runner\.temp \}\}\/assurance-provider-inbox/);
   assert.match(example, /manifest: \$\{\{ steps\.bundle\.outputs\.manifest \}\}/);
   assert.doesNotMatch(example, /candidate\/\.assurance\/(?:manifest|verifier-receipt|authorization)/);
   assert.doesNotMatch(example, /evidence-root: candidate(?:\s|$)/);
+
+  const remoteSmoke = await readFile(path.join(root, '.github/workflows/remote-action-smoke.yml'), 'utf8');
+  const remotePins = [...remoteSmoke.matchAll(/SprintLoop-Assurance-Kit(?:\/materialize-bundle)?@([0-9a-f]{40})/g)]
+    .map((match) => match[1]);
+  assert.deepEqual(remotePins, [ACTION_REVISION, ACTION_REVISION]);
+  assert.match(remoteSmoke, /runner\.temp.*assurance-provider-inbox/);
+  assert.match(remoteSmoke, /runner\.temp.*assurance-bundle/);
 });
 
 test('GitHub-only package and clean-room inventory are structural release requirements', async () => {
@@ -103,4 +114,6 @@ test('GitHub-only package and clean-room inventory are structural release requir
   assert.match(release, /npmPublished: false/);
   assert.match(release, /status.*--porcelain/);
   assert.match(release, /artifacts\/SHA256SUMS/);
+  assert.match(release, /actionRevision/);
+  assert.match(release, /git.*grep/);
 });

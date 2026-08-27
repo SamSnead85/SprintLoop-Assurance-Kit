@@ -15,6 +15,18 @@ const source = run('git', ['rev-parse', '--verify', 'HEAD']).stdout.trim();
 if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(source)) fail('release:dry-run requires a full reviewed Git commit SHA');
 const status = run('git', ['status', '--porcelain=v1', '--untracked-files=all']).stdout;
 if (status.trim()) fail('release:dry-run requires a clean Git worktree and index');
+const unresolvedMarker = `${['REPLACE', 'WITH'].join('_')}_`;
+const unresolved = run('git', ['grep', '-n', '--fixed-strings', unresolvedMarker, '--', '.'], { allowFailure: true });
+if (unresolved.status === 0) fail(`release:dry-run found an unresolved bootstrap marker:\n${unresolved.stdout}`);
+if (unresolved.status !== 1) fail('release:dry-run could not verify bootstrap markers');
+
+const integrationExample = await readFile(path.join(root, 'examples/github/assurance.yml'), 'utf8');
+const actionPins = [...integrationExample.matchAll(/SamSnead85\/SprintLoop-Assurance-Kit(?:\/materialize-bundle)?@([0-9a-f]{40})/g)]
+  .map((match) => match[1]);
+if (actionPins.length !== 2 || actionPins[0] !== actionPins[1]) {
+  fail('release:dry-run requires two identical full immutable Action revisions');
+}
+const actionRevision = actionPins[0];
 
 run('npm', ['run', 'verify']);
 await mkdir(path.join(root, 'artifacts'), { recursive: true });
@@ -34,6 +46,7 @@ const subject = {
   digest: digest(tarball),
   size: tarball.length,
   sourceRevision: source,
+  actionRevision,
   sbom: {
     path: 'artifacts/sbom.spdx.json',
     digest: digest(sbom),
@@ -53,7 +66,7 @@ await writeFile(
   `${sums.map(([file, hash]) => `${hash}  ${file}`).join('\n')}\n`,
   'utf8',
 );
-const notes = `# SprintLoop Assurance Kit ${details.version}\n\nGitHub prerelease candidate for source \`${source}\`.\n\n- Distribution: GitHub source/Action only; no npm package is published.\n- Candidate artifact: \`${details.filename}\`\n- Artifact digest: \`${subject.digest}\`\n- SBOM: \`${subject.sbom.path}\` (\`${subject.sbom.digest}\`)\n- Verification: run \`npm ci --ignore-scripts && npm run verify\` from this exact source revision.\n- Status: pre-1.0 shadow/minimum integration; see the security and enforcement boundaries in README.\n`;
+const notes = `# SprintLoop Assurance Kit ${details.version}\n\nGitHub prerelease candidate for source \`${source}\`.\n\n- Distribution: GitHub source/Action only; no npm package is published.\n- Release/tag source revision: \`${source}\`\n- Reviewed immutable Action revision: \`${actionRevision}\`\n- Candidate artifact: \`${details.filename}\`\n- Artifact digest: \`${subject.digest}\`\n- SBOM: \`${subject.sbom.path}\` (\`${subject.sbom.digest}\`)\n- Verification: run \`npm ci --ignore-scripts && npm run verify\` from this exact source revision.\n- Status: pre-1.0 shadow/minimum integration; see the security and enforcement boundaries in README.\n`;
 await writeFile(path.join(root, 'artifacts/release-notes.md'), notes, 'utf8');
 process.stdout.write(`Unpublished GitHub candidate: ${subject.filename} ${subject.digest} source:${source}\n`);
 

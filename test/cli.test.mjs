@@ -6,6 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 const root = path.resolve(import.meta.dirname, '..');
+const ACTION_REVISION = 'd5307358ce6a39d12de025748cb0676acbe461bf';
 
 test('CLI demo is a no-secret PASS golden path', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'assurance-kit-cli-'));
@@ -96,7 +97,9 @@ test('CLI init emits fork-safe candidate and receiver-owned protected checkouts'
     assert.match(workflow, /expected-policy-digest: \$\{\{ vars\.ASSURANCE_POLICY_DIGEST \}\}/);
     assert.match(workflow, /expected-trust-digest: \$\{\{ vars\.ASSURANCE_TRUST_DIGEST \}\}/);
     assert.match(workflow, /expected-environment: \$\{\{ vars\.ASSURANCE_ENVIRONMENT \}\}/);
-    assert.match(workflow, /SprintLoop-Assurance-Kit\/materialize-bundle@REPLACE_WITH_REVIEWED_COMMIT_SHA/);
+    const pins = [...workflow.matchAll(/SprintLoop-Assurance-Kit(?:\/materialize-bundle)?@([0-9a-f]{40})/g)]
+      .map((match) => match[1]);
+    assert.deepEqual(pins, [ACTION_REVISION, ACTION_REVISION]);
     assert.match(workflow, /source: \$\{\{ runner\.temp \}\}\/assurance-provider-inbox/);
     assert.match(workflow, /manifest: \$\{\{ steps\.bundle\.outputs\.manifest \}\}/);
     assert.doesNotMatch(workflow, /candidate\/\.assurance\/(?:manifest|verifier-receipt|authorization)/);

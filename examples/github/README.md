@@ -12,9 +12,9 @@
 10. Install a receiver-governed authenticated retrieval step that writes only the exact bundle into `${{ runner.temp }}/assurance-provider-inbox`.
 11. Pin both Actions to the same reviewed immutable commit and run the workflow in shadow mode.
 
-Copy [assurance.yml](assurance.yml) into `.github/workflows/assurance.yml`, replace both Action commit placeholders, and add the authenticated retrieval step before `Require authenticated out-of-band bundle`. On a fresh runner the checked materializer finds no inbox and exits nonzero by design; it is not a fetcher.
+Copy [assurance.yml](assurance.yml) into `.github/workflows/assurance.yml` and add the authenticated retrieval step before `Require authenticated out-of-band bundle`. On a fresh runner the checked materializer finds no inbox and exits nonzero by design; it is not a fetcher.
 
-`REPLACE_WITH_REVIEWED_COMMIT_SHA` is the intentional first-commit bootstrap mechanism. It cannot run until a reviewed public commit exists; replace it with that full SHA before enabling the workflow. No mutable fallback is provided.
+Both Actions are pinned to reviewed execution revision `d5307358ce6a39d12de025748cb0676acbe461bf`. Keep both references identical and immutable; do not replace them with a branch or tag.
 
 The inbox contract is `manifest.json`, `verifier-receipt.json`, `authorization.json`, and only manifest-relative evidence. It excludes policy, trust, credentials, private keys, and dossiers. Do not use a mutable `latest` object, a candidate-supplied locator, or candidate-local fallback. See [the provider contract](../../docs/BUNDLE-PROVIDER-CONTRACT.md).
 

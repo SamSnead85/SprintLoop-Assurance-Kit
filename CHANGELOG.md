@@ -2,7 +2,7 @@
 
 All notable changes follow semantic versioning. The project is pre-1.0; minor releases may change contracts with an explicit migration note.
 
-## 0.1.0 — Unreleased
+## 0.1.0 — 2026-08-27
 
 - Added dependency-free evaluator library and CLI.
 - Added exact Git candidate, evidence-set, independent receipt, and finite authorization bindings.
@@ -14,5 +14,7 @@ All notable changes follow semantic versioning. The project is pre-1.0; minor re
 - Added exact repository, environment, Git commit, Git tree, and clean tracked-tree bindings.
 - Added bounded no-follow file reads, evidence count/aggregate limits, exact-key runtime validation, and authorization ordering checks.
 - Marked dossier history as unanchored, added installed-package smoke tests, and restricted v0.1 distribution to GitHub with `private:true`.
+- Added a no-network external-bundle materializer so manifests, evidence, receipts, and authorizations are created after—and remain outside—the exact candidate they bind.
+- Made current dossier standing require a fresh external candidate and complete receiver context; stored context is used only for historical reproduction.
 - Added fail-closed out-of-band bundle materialization so post-candidate proof never self-references the Git tree it binds.
 - Required an external candidate and complete receiver context for dossier current standing; stored context is historical reproduction only.
