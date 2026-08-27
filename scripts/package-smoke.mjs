@@ -19,10 +19,12 @@ try {
     : path.join(consumer, 'node_modules/.bin/sprintloop-assure');
   const help = run(executable, ['help'], consumer);
   if (!help.stdout.includes('SprintLoop Assurance Kit')) throw new Error('Installed CLI did not execute its entrypoint');
+  const version = run(executable, ['--version'], consumer);
+  if (!version.stdout.includes(metadata.version)) throw new Error('Installed CLI version does not match package metadata');
   const library = run(process.execPath, [
     '--input-type=module',
     '--eval',
-    "import('@sprintloop/assurance-kit').then((m)=>{if(typeof m.createDossier!=='function'||typeof m.verifyDossier!=='function'||typeof m.runMcpStdioServer!=='function'||m.listMcpTools().length!==6)process.exit(1)})",
+    "import('@sprintloop/assurance-kit').then((m)=>{if(typeof m.createDossier!=='function'||typeof m.verifyDossier!=='function'||typeof m.diagnoseSetup!=='function'||typeof m.collectEvidence!=='function'||typeof m.toManifestEvidence!=='function'||typeof m.runMcpStdioServer!=='function'||m.listMcpTools().length!==7)process.exit(1)})",
   ], consumer);
   if (library.status !== 0) throw new Error('Installed library exports are unavailable');
   await access(path.join(consumer, 'node_modules/@sprintloop/assurance-kit/materialize-bundle/action.yml'));
@@ -30,7 +32,23 @@ try {
   await access(path.join(consumer, 'node_modules/@sprintloop/assurance-kit/src/materialize-bundle.mjs'));
   await access(path.join(consumer, 'node_modules/@sprintloop/assurance-kit/src/prepare-shadow-bundle.mjs'));
   await access(path.join(consumer, 'node_modules/@sprintloop/assurance-kit/schemas/mcp-server-config.v1.schema.json'));
+  await access(path.join(consumer, 'node_modules/@sprintloop/assurance-kit/schemas/doctor-result.v1.schema.json'));
+  await access(path.join(consumer, 'node_modules/@sprintloop/assurance-kit/schemas/evidence-collection.v1.schema.json'));
   await access(path.join(consumer, 'node_modules/@sprintloop/assurance-kit/schemas/release-subject.v1.schema.json'));
+  await access(path.join(consumer, 'node_modules/@sprintloop/assurance-kit/ROADMAP.md'));
+  await access(path.join(consumer, 'node_modules/@sprintloop/assurance-kit/SUPPORT.md'));
+  await access(path.join(consumer, 'node_modules/@sprintloop/assurance-kit/MAINTAINERS.md'));
+
+  const evidenceRoot = path.join(temporary, 'evidence');
+  await mkdir(evidenceRoot, { recursive: true });
+  await writeFile(path.join(evidenceRoot, 'junit.xml'), '<testsuite tests="1"><testcase/></testsuite>\n');
+  const evidenceInputs = path.join(temporary, 'evidence-inputs.json');
+  await writeFile(evidenceInputs, `${JSON.stringify([{ id: 'tests', path: 'junit.xml', format: 'junit' }])}\n`);
+  const collected = run(executable, ['collect-evidence', '--input', evidenceInputs, '--root', evidenceRoot], consumer);
+  const collection = JSON.parse(collected.stdout);
+  if (collection.pathBase !== '.' || collection.evidence?.[0]?.format !== 'junit') {
+    throw new Error('Installed evidence collector did not produce its stable contract');
+  }
 
   const mcpRoot = path.join(temporary, 'mcp-roots');
   const bundleRoot = path.join(mcpRoot, 'bundle');

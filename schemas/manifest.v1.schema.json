@@ -50,7 +50,7 @@
   "$defs": {
     "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$" },
     "repository": { "type": "string", "maxLength": 2048, "pattern": "^[A-Za-z][A-Za-z0-9+.-]{0,31}:[^\\s\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]{1,2015}$" },
-    "relativePath": { "type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]).+$" },
+    "relativePath": { "type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^(?!/)(?!.*\\\\)(?!.*:)(?!.*[<>\"|?*])(?!.*//)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*(?:^|/)(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][1-9¹²³]|[Ll][Pp][Tt][1-9¹²³])(?:[ .]|/|$))(?!.*[. ](?:/|$))(?!.*[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]).+$" },
     "mediaType": { "type": "string", "maxLength": 255, "pattern": "^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,127}/[A-Za-z0-9!#$%&'*+.^_`|~-]{1,127}$" },
     "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
     "candidateDigest": { "type": "string", "pattern": "^git:(?:sha1:[0-9a-f]{40}|sha256:[0-9a-f]{64})$" },

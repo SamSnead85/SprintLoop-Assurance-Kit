@@ -1,4 +1,5 @@
 import { documentDigest } from './canonical.mjs';
+import { collectEvidence, EvidenceCollectionError } from './collect-evidence.mjs';
 import { createDossier, verifyDossier } from './dossier.mjs';
 import { validateManifest, validatePolicy } from './validate.mjs';
 import { validateJsonSchema } from './schema-check.mjs';
@@ -6,10 +7,13 @@ import {
   McpToolInputError,
   publicMcpConfig,
   readGrantedJson,
-  resolveGrantedDirectory,
+  resolveGrantedDirectoryBinding,
 } from './mcp-config.mjs';
 
-export const MCP_SERVER_VERSION = '0.2.0';
+import { KIT_VERSION } from './version.mjs';
+import { isPortableRelativePath, PORTABLE_RELATIVE_PATH_PATTERN } from './portable-path.mjs';
+
+export const MCP_SERVER_VERSION = KIT_VERSION;
 export const MODERN_MCP_VERSION = '2026-07-28';
 export const LEGACY_MCP_VERSIONS = Object.freeze(['2025-11-25', '2025-06-18']);
 export const SUPPORTED_MCP_VERSIONS = Object.freeze([MODERN_MCP_VERSION, ...LEGACY_MCP_VERSIONS]);
@@ -23,7 +27,7 @@ const ROOT_ID = '^[a-z][a-z0-9_-]{0,63}$';
 const PUBLIC_ID = '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$';
 const REPOSITORY = '^[A-Za-z][A-Za-z0-9+.-]{0,31}:[^\\s\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]{1,2015}$';
 const MEDIA_TYPE = "^[A-Za-z0-9!#$%&'*+.^_`|~-]{1,127}/[A-Za-z0-9!#$%&'*+.^_`|~-]{1,127}$";
-const RELATIVE_PATH = '^(?!/)(?!.*\\\\)(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]).{1,1024}$';
+const RELATIVE_PATH = PORTABLE_RELATIVE_PATH_PATTERN;
 const CANONICAL_TIME = '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$';
 const SAFE_TEXT = '^[^\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]+$';
 const CONTROL = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/gu;
@@ -151,6 +155,83 @@ const TOOLS = deepFreeze([
           },
         },
         enforcementPath: { type: 'string' },
+      },
+    },
+    annotations,
+  },
+  {
+    name: 'assurance_collect_evidence',
+    title: 'Collect standard CI evidence metadata',
+    description: 'Read bounded JUnit, SARIF, SPDX, CycloneDX, in-toto/SLSA, or Sigstore files below a granted bundle root and return exact raw-byte digests plus data-minimized structural metadata. Claims and signatures are not verified, no evidence bytes are returned, and no decision or effect is produced.',
+    inputSchema: {
+      $schema: JSON_SCHEMA,
+      type: 'object',
+      additionalProperties: false,
+      required: ['bundleRootId', 'inputs'],
+      properties: {
+        bundleRootId: rootIdSchema,
+        evidenceRoot: { anyOf: [{ const: '.' }, pathSchema] },
+        inputs: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 32,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['id', 'path'],
+            properties: {
+              id: { type: 'string', pattern: PUBLIC_ID },
+              path: pathSchema,
+              format: { enum: ['auto', 'junit', 'sarif', 'spdx', 'cyclonedx', 'in-toto', 'sigstore'] },
+            },
+          },
+        },
+        maxFileBytes: { type: 'integer', minimum: 1, maximum: 67108864 },
+        maxTotalBytes: { type: 'integer', minimum: 1, maximum: 268435456 },
+      },
+    },
+    outputSchema: {
+      $schema: JSON_SCHEMA,
+      type: 'object',
+      additionalProperties: false,
+      required: ['mode', 'enforcementEligible', 'schemaVersion', 'pathBase', 'claimsVerified', 'evidence', 'totals'],
+      properties: {
+        ...advisoryProperties,
+        schemaVersion: { const: 'assurance.sprintloop.dev/mcp-evidence-collection/v1' },
+        pathBase: { anyOf: [{ const: '.' }, pathSchema] },
+        claimsVerified: { const: false },
+        evidence: {
+          type: 'array',
+          maxItems: 32,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['id', 'type', 'path', 'mediaType', 'digest', 'sizeBytes', 'format', 'formatVersion', 'inspectionLevel', 'claimsVerified'],
+            properties: {
+              id: { type: 'string', pattern: PUBLIC_ID },
+              type: { type: 'string', pattern: PUBLIC_ID },
+              path: pathSchema,
+              mediaType: { type: 'string', maxLength: 255, pattern: MEDIA_TYPE },
+              digest: { type: 'string', pattern: SHA256 },
+              sizeBytes: { type: 'integer', minimum: 0, maximum: 67108864 },
+              format: { enum: ['junit', 'sarif', 'spdx', 'cyclonedx', 'in-toto', 'sigstore'] },
+              formatVersion: { type: 'string', minLength: 1, maxLength: 32, pattern: SAFE_TEXT },
+              inspectionLevel: { enum: ['STRUCTURE_FULL', 'ENVELOPE_ONLY'] },
+              claimsVerified: { const: false },
+            },
+          },
+        },
+        totals: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['itemCount', 'byteCount', 'structureFullCount', 'envelopeOnlyCount'],
+          properties: {
+            itemCount: { type: 'integer', minimum: 1, maximum: 32 },
+            byteCount: { type: 'integer', minimum: 0, maximum: 268435456 },
+            structureFullCount: { type: 'integer', minimum: 0, maximum: 32 },
+            envelopeOnlyCount: { type: 'integer', minimum: 0, maximum: 32 },
+          },
+        },
       },
     },
     annotations,
@@ -417,7 +498,7 @@ export function listMcpTools() {
   return TOOLS;
 }
 
-export async function callMcpTool(name, rawArguments, config) {
+export async function callMcpTool(name, rawArguments, config, hooks = {}) {
   const tool = TOOL_BY_NAME.get(name);
   if (!tool) throw new McpToolInputError('UNKNOWN_TOOL', 'Unknown Assurance MCP tool.');
   const inputErrors = validateJsonSchema(tool.inputSchema, rawArguments ?? {});
@@ -425,14 +506,45 @@ export async function callMcpTool(name, rawArguments, config) {
   const args = validateArguments(name, rawArguments ?? {});
   let result;
   if (name === 'assurance_capabilities') result = capabilities(config);
+  else if (name === 'assurance_collect_evidence') result = await collectEvidenceTool(args, config);
   else if (name === 'assurance_policy_requirements') result = await policyRequirements(args, config);
   else if (name === 'assurance_validate_manifest') result = await validateManifestTool(args, config);
-  else if (name === 'assurance_evaluate_bundle') result = await evaluateBundle(args, config);
+  else if (name === 'assurance_evaluate_bundle') result = await evaluateBundle(args, config, hooks);
   else if (name === 'assurance_verify_dossier') result = await verifyDossierTool(args, config);
   else result = explainDecision(args);
   const outputErrors = validateJsonSchema(tool.outputSchema, result);
   if (outputErrors.length) throw new Error(`MCP tool output violates its advertised schema at ${outputErrors[0]}`);
   return result;
+}
+
+async function collectEvidenceTool(args, config) {
+  const evidenceRoot = await resolveGrantedDirectoryBinding(config, args.bundleRootId, 'bundle', args.evidenceRoot);
+  try {
+    const collection = await collectEvidence(args.inputs, {
+      root: evidenceRoot.path,
+      rootIdentity: evidenceRoot.identity,
+      pathBase: args.evidenceRoot ?? '.',
+      maxFiles: 32,
+      maxFileBytes: args.maxFileBytes,
+      maxTotalBytes: args.maxTotalBytes,
+    });
+    return {
+      mode: ADVISORY,
+      enforcementEligible: false,
+      // This redacted model-facing projection intentionally has a distinct
+      // identity from the full library/CLI collection JSON Schema.
+      schemaVersion: 'assurance.sprintloop.dev/mcp-evidence-collection/v1',
+      pathBase: collection.pathBase,
+      claimsVerified: false,
+      evidence: collection.evidence.map(({ summary: _summary, ...entry }) => entry),
+      totals: collection.totals,
+    };
+  } catch (error) {
+    if (error instanceof EvidenceCollectionError) {
+      throw new McpToolInputError('EVIDENCE_COLLECTION_FAILED', `Evidence collection failed with ${error.code}.`);
+    }
+    throw error;
+  }
 }
 
 function capabilities(config) {
@@ -527,7 +639,7 @@ async function validateManifestTool(args, config) {
   };
 }
 
-async function evaluateBundle(args, config) {
+async function evaluateBundle(args, config, hooks) {
   const paths = args.paths;
   const [manifest, receipt, authorization, policy, trustStore, evidenceRoot] = await Promise.all([
     readGrantedJson(config, args.bundleRootId, 'bundle', paths.manifest),
@@ -535,7 +647,7 @@ async function evaluateBundle(args, config) {
     readGrantedJson(config, args.bundleRootId, 'bundle', paths.authorization, { optional: true }),
     readGrantedJson(config, args.receiverRootId, 'receiver', paths.policy),
     readGrantedJson(config, args.receiverRootId, 'receiver', paths.trust),
-    resolveGrantedDirectory(config, args.bundleRootId, 'bundle', paths.evidenceRoot),
+    resolveGrantedDirectoryBinding(config, args.bundleRootId, 'bundle', paths.evidenceRoot),
   ]);
   const manifestErrors = validateManifest(manifest);
   if (manifestErrors.length) {
@@ -545,18 +657,29 @@ async function evaluateBundle(args, config) {
   if (policyErrors.length) {
     throw new McpToolInputError('POLICY_INVALID', `Receiver policy is invalid at ${safeOutputText(policyErrors[0], 'policy', 256)}.`);
   }
-  const dossier = await createDossier({
-    manifest,
-    receipt,
-    authorization,
-    policy,
-    trustStore,
-    evidenceRoot,
-    candidate: args.candidate,
-    receiverContext: args.receiverContext,
-    at: args.at,
-    embedEvidence: false,
-  });
+  await hooks.afterEvidenceRootBound?.();
+  let dossier;
+  try {
+    dossier = await createDossier({
+      manifest,
+      receipt,
+      authorization,
+      policy,
+      trustStore,
+      evidenceRoot: evidenceRoot.path,
+      evidenceRootBinding: evidenceRoot,
+      evidenceInspectionHooks: hooks,
+      candidate: args.candidate,
+      receiverContext: args.receiverContext,
+      at: args.at,
+      embedEvidence: false,
+    });
+  } catch (error) {
+    if (error?.code === 'ESTALE') {
+      throw new McpToolInputError('ROOT_CHANGED', 'Granted evidence root changed during bundle evaluation.');
+    }
+    throw error;
+  }
   return {
     mode: ADVISORY,
     enforcementEligible: false,
@@ -652,6 +775,34 @@ function validateArguments(name, value) {
     }
     return { reasonCodes: [...value.reasonCodes] };
   }
+  if (name === 'assurance_collect_evidence') {
+    exact(value, ['bundleRootId', 'evidenceRoot', 'inputs', 'maxFileBytes', 'maxTotalBytes'], '$');
+    if (!Array.isArray(value.inputs) || value.inputs.length < 1 || value.inputs.length > 32) {
+      invalid('inputs must contain 1-32 evidence descriptors.');
+    }
+    const ids = new Set();
+    const paths = new Set();
+    const inputs = value.inputs.map((entry) => {
+      assertObject(entry, 'inputs[]');
+      exact(entry, ['id', 'path', 'format'], 'inputs[]');
+      if (typeof entry.id !== 'string' || !new RegExp(PUBLIC_ID, 'u').test(entry.id)) invalid('Evidence input id is invalid.');
+      if (ids.has(entry.id)) invalid('Evidence input ids must be unique.');
+      const entryPath = relativePath(entry.path, false);
+      if (paths.has(entryPath)) invalid('Evidence input paths must be unique.');
+      const format = entry.format ?? 'auto';
+      if (!['auto', 'junit', 'sarif', 'spdx', 'cyclonedx', 'in-toto', 'sigstore'].includes(format)) invalid('Evidence input format is unsupported.');
+      ids.add(entry.id);
+      paths.add(entryPath);
+      return { id: entry.id, path: entryPath, format };
+    });
+    return {
+      bundleRootId: rootId(value.bundleRootId),
+      evidenceRoot: relativePath(value.evidenceRoot ?? '.', true),
+      inputs,
+      maxFileBytes: boundedEvidenceLimit(value.maxFileBytes, 16_777_216, 67_108_864, 'maxFileBytes'),
+      maxTotalBytes: boundedEvidenceLimit(value.maxTotalBytes, 67_108_864, 268_435_456, 'maxTotalBytes'),
+    };
+  }
   if (name === 'assurance_policy_requirements') {
     exact(value, ['receiverRootId', 'policyPath'], '$');
     return { receiverRootId: rootId(value.receiverRootId), policyPath: relativePath(value.policyPath ?? 'policy.json', false) };
@@ -681,6 +832,14 @@ function validateArguments(name, value) {
     dossierPath: relativePath(value.dossierPath ?? 'dossier.json', false),
     trustPath: relativePath(value.trustPath ?? 'trust.json', false),
   };
+}
+
+function boundedEvidenceLimit(value, fallback, maximum, label) {
+  const selected = value ?? fallback;
+  if (!Number.isSafeInteger(selected) || selected < 1 || selected > maximum) {
+    invalid(`${label} is outside the supported evidence bound.`);
+  }
+  return selected;
 }
 
 function receiverContext(value) {
@@ -777,10 +936,7 @@ function candidate(value) {
 }
 
 function relativePath(value, allowDot) {
-  if (allowDot && value === '.') return value;
-  if (!boundedString(value, 1, 1024) || HAS_CONTROL.test(value) || value.includes('\\') || value.startsWith('/')) invalid('Document path must be a bounded forward-slash relative path.');
-  const segments = value.split('/');
-  if (segments.some((segment) => !segment || segment === '.' || segment === '..')) invalid('Document path contains a prohibited segment.');
+  if (!isPortableRelativePath(value, { allowDot })) invalid('Document path must be a portable forward-slash relative path.');
   return value;
 }
 

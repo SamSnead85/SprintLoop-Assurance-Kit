@@ -10,12 +10,21 @@ export async function createDossier({
   policy,
   trustStore,
   evidenceRoot,
+  evidenceRootBinding,
+  evidenceInspectionHooks,
   candidate,
   at = new Date().toISOString(),
   embedEvidence = false,
   receiverContext,
 }) {
-  const evidence = await inspectLiveEvidence(manifest, evidenceRoot, policy, embedEvidence);
+  const evidence = await inspectLiveEvidence(
+    manifest,
+    evidenceRoot,
+    policy,
+    embedEvidence,
+    evidenceRootBinding,
+    evidenceInspectionHooks,
+  );
   const decision = evaluateAssurance({
     manifest,
     receipt,

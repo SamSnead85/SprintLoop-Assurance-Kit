@@ -1,0 +1,100 @@
+name: Pilot field report
+description: Share public-safe, measurable results from an evaluation or shadow pilot.
+title: "pilot: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Field reports help prioritize utility over promotion. Report outcomes even when the Kit did not fit. Aggregate or synthesize all details: do not identify a customer or private repository, and do not paste code, evidence, credentials, keys, tokens, internal paths, or regulated data.
+
+        A shadow result measures integration readiness; it is not production release assurance or a compliance certification.
+
+        **Do not describe a suspected false PASS, bypass, unsafe default, or vulnerability here.** Report it through GitHub private vulnerability reporting first. A public field report may include only an aggregate false-PASS count after private triage and explicit authorization to disclose it.
+  - type: dropdown
+    id: relationship
+    attributes:
+      label: Relationship to the project
+      options:
+        - Independent evaluator
+        - Open-source contributor
+        - SprintLoop or maintainer-affiliated team
+        - Commercial pilot participant
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Tagged version or full source commit
+      placeholder: v0.x.0 or 40-character commit
+    validations:
+      required: true
+  - type: dropdown
+    id: state
+    attributes:
+      label: Pilot state
+      options:
+        - Completed
+        - In progress
+        - Blocked
+        - Stopped because the Kit did not fit
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Aggregate scope
+      description: State the Kit surfaces exercised, repository and workflow counts, risk tier, and CI platform without names or identifying details.
+      placeholder: Setup doctor and shadow Action; 2 private repositories; pull-request test and SAST workflow; advisory only
+    validations:
+      required: true
+  - type: input
+    id: first_use
+    attributes:
+      label: Time to first useful result
+      description: Report elapsed minutes to the first demo result or own-repository HOLD/BLOCK/PASS, and say which result it was.
+      placeholder: 18 minutes to first own-repository HOLD
+    validations:
+      required: true
+  - type: textarea
+    id: outcomes
+    attributes:
+      label: Measured outcomes
+      description: Aggregate PASS/HOLD/BLOCK counts, missing controls found, exact-candidate coverage, decision latency, remediation time, and false HOLD/BLOCK findings. Include a false-PASS count only after private security triage and authorization; never include bypass details here.
+      placeholder: 12 candidates observed; 12 exact bindings; 0 PASS; 9 HOLD for missing independent receipt; 3 BLOCK for digest drift
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: What was genuinely useful
+      description: Name the decision, diagnostic, integration, or audit task that became faster or safer. Write "none" if no material value was found.
+    validations:
+      required: true
+  - type: textarea
+    id: friction
+    attributes:
+      label: Friction and missing capability
+      description: Identify the first confusing or manual step and what would have changed the outcome.
+    validations:
+      required: true
+  - type: textarea
+    id: controls
+    attributes:
+      label: Independence and enforcement boundary used
+      description: Describe ownership of builder, verifier, authority, policy/trust, and deployment control in aggregate terms. State explicitly if the pilot was advisory only.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Publication confirmation
+      options:
+        - label: I am authorized to publish this aggregate report and removed customer identity, personal data, private source, secrets, internal paths, and proprietary evidence.
+          required: true
+        - label: I disclosed my relationship to SprintLoop or the maintainers above.
+          required: true
+        - label: I have not described a shadow, doctor, collector, or MCP result as production release permission or compliance certification.
+          required: true
+        - label: Any suspected false PASS, bypass, vulnerability, or unsafe default was reported privately first; this form contains no exploit or bypass detail.
+          required: true

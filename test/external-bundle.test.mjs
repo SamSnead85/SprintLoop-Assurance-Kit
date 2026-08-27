@@ -119,7 +119,9 @@ test('external bundle preflight fails closed on missing, candidate-local, and ex
   });
 });
 
-test('materializer wrapper escapes hostile provider filenames before writing GitHub logs', async () => {
+test('materializer wrapper escapes hostile provider filenames before writing GitHub logs', {
+  skip: process.platform === 'win32' && 'Windows prohibits newline-bearing filenames',
+}, async () => {
   await withExternalBundle(async (fixture) => {
     const hostileName = 'forged\n::error title=attacker::owned.txt';
     await writeFile(path.join(fixture.inbox, hostileName), 'undeclared\n');

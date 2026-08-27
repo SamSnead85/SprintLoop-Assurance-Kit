@@ -24,11 +24,22 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout exact candidate without retained credentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.candidate }}
           path: candidate
           persist-credentials: false
+
+      - name: Install exact Assurance runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.20.0
+          check-latest: false
+          package-manager-cache: false
+          token: ''
+          mirror-token: ''
+      - name: Require exact Node runtime
+        run: node -e "if(process.versions.node!=='24.20.0')process.exit(1)"
 
       # Capture the receiver-selected checkout before any candidate code runs.
       # The Action compares this value to HEAD again after evidence production,
@@ -57,7 +68,7 @@ jobs:
           TEST_EXIT="$test_exit" node -e "const fs=require('node:fs');const p=require('node:path');const value={schemaVersion:'sprintloop.shadow-test-observation/v1',exitCode:Number(process.env.TEST_EXIT)};fs.writeFileSync(p.join(process.env.EVIDENCE_ROOT,'test-result.json'),JSON.stringify(value)+'\n',{mode:0o600,flag:'wx'})"
 
       - name: Checkout protected receiver configuration
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/heads/main
           path: receiver
@@ -79,7 +90,7 @@ jobs:
 
       - name: Prepare partial shadow evidence — always HOLD
         id: shadow
-        uses: SamSnead85/SprintLoop-Assurance-Kit/prepare-shadow-bundle@7dfb1e417256f08a7b5e149093cc4d4c5987ea5e
+        uses: SamSnead85/SprintLoop-Assurance-Kit/prepare-shadow-bundle@9194e6181651c81fa101e6a4aa38d87a4891f0b4
         with:
           candidate-root: candidate
           candidate: ${{ steps.candidate.outputs.sha }}

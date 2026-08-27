@@ -7,6 +7,7 @@ import { canonicalize, documentDigest } from '../src/canonical.mjs';
 import { createDossier, verifyDossier } from '../src/dossier.mjs';
 import { evaluateAssurance } from '../src/evaluate.mjs';
 import { createExampleBundle, writeExampleBundle } from '../src/example.mjs';
+import { validateJsonSchema } from '../src/schema-check.mjs';
 
 const NOW = new Date('2030-01-01T12:00:00.000Z');
 
@@ -14,6 +15,35 @@ test('canonical JSON sorts object keys and preserves array order', () => {
   assert.equal(canonicalize({ z: 1, a: ['b', 'a'] }), '{"a":["b","a"],"z":1}');
   assert.equal(documentDigest({ b: 2, a: 1 }), documentDigest({ a: 1, b: 2 }));
   assert.throws(() => canonicalize({ value: 1.25 }), /safe integers/);
+});
+
+test('canonical JSON preserves prototype-named keys without digest collisions', () => {
+  const hostile = JSON.parse('{"x":1,"__proto__":{"polluted":true},"constructor":{"nested":{"__proto__":"value"}}}');
+  assert.equal(
+    canonicalize(hostile),
+    '{"__proto__":{"polluted":true},"constructor":{"nested":{"__proto__":"value"}},"x":1}',
+  );
+  assert.notEqual(documentDigest(hostile), documentDigest({ x: 1 }));
+  assert.equal(Object.prototype.polluted, undefined);
+});
+
+test('canonical JSON rejects sparse arrays instead of aliasing them to null', () => {
+  assert.throws(() => canonicalize(Array(1)), /dense|sparse/);
+  const withExtra = [null];
+  withExtra.extra = true;
+  assert.throws(() => canonicalize(withExtra), /extra enumerable/);
+  assert.equal(canonicalize([null]), '[null]');
+});
+
+test('internal schema validation enforces oneOf, property bounds, and ref siblings', () => {
+  assert.ok(validateJsonSchema({ oneOf: [{ type: 'string' }, { type: 'null' }] }, 42).length > 0);
+  assert.ok(validateJsonSchema({ type: 'object', maxProperties: 0 }, { x: 1 }).length > 0);
+  assert.ok(validateJsonSchema({
+    $defs: { text: { type: 'string' } },
+    $ref: '#/$defs/text',
+    minLength: 3,
+  }, 'x').length > 0);
+  assert.ok(validateJsonSchema({ oneOf: [{ type: 'number' }, { type: 'integer' }] }, 1).length > 0);
 });
 
 test('golden path creates a PASS dossier and verifies it offline', async () => {

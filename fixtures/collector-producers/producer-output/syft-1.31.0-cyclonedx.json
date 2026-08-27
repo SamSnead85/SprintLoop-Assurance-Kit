@@ -1,0 +1,172 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:00000000-0000-4000-8000-000000000001",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-01-01T00:00:00Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "author": "anchore",
+          "name": "syft",
+          "version": "1.31.0"
+        }
+      ]
+    },
+    "component": {
+      "bom-ref": "syft-source-directory",
+      "type": "file",
+      "name": "fixtures/collector-producers/inputs/syft"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg:npm/assurance-collector-corpus@1.0.0?package-id=1af64601e2f130a5",
+      "type": "library",
+      "name": "assurance-collector-corpus",
+      "version": "1.0.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "cpe": "cpe:2.3:a:assurance-collector-corpus:assurance-collector-corpus:1.0.0:*:*:*:*:*:*:*",
+      "purl": "pkg:npm/assurance-collector-corpus@1.0.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "javascript-lock-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "javascript"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "npm"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "javascript-npm-package-lock-entry"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:assurance-collector-corpus:assurance_collector_corpus:1.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:assurance_collector_corpus:assurance-collector-corpus:1.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:assurance_collector_corpus:assurance_collector_corpus:1.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:assurance-collector:assurance-collector-corpus:1.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:assurance-collector:assurance_collector_corpus:1.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:assurance_collector:assurance-collector-corpus:1.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:assurance_collector:assurance_collector_corpus:1.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:assurance:assurance-collector-corpus:1.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:assurance:assurance_collector_corpus:1.0.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/package-lock.json"
+        }
+      ]
+    },
+    {
+      "bom-ref": "pkg:npm/left-pad@1.3.0?package-id=a0a6dc7508e378e4",
+      "type": "library",
+      "name": "left-pad",
+      "version": "1.3.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "WTFPL"
+          }
+        }
+      ],
+      "cpe": "cpe:2.3:a:left-pad:left-pad:1.3.0:*:*:*:*:*:*:*",
+      "purl": "pkg:npm/left-pad@1.3.0",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "javascript-lock-cataloger"
+        },
+        {
+          "name": "syft:package:language",
+          "value": "javascript"
+        },
+        {
+          "name": "syft:package:type",
+          "value": "npm"
+        },
+        {
+          "name": "syft:package:metadataType",
+          "value": "javascript-npm-package-lock-entry"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:left-pad:left_pad:1.3.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:left_pad:left-pad:1.3.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:left_pad:left_pad:1.3.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:left:left-pad:1.3.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:cpe23",
+          "value": "cpe:2.3:a:left:left_pad:1.3.0:*:*:*:*:*:*:*"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/package-lock.json"
+        }
+      ]
+    },
+    {
+      "bom-ref": "fd71c2238fc07657",
+      "type": "file",
+      "name": "fixtures/collector-producers/inputs/syft/package-lock.json",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "632e99f2ab9f49d188789164dc5f2e1b22cf267d"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "8fb322390cbc5983a35e98d8a354cd521a3c36ab3fb9ffe953fb34895de2637a"
+        }
+      ]
+    }
+  ]
+}

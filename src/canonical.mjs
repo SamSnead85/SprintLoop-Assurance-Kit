@@ -25,11 +25,21 @@ function normalize(value) {
   }
 
   if (Array.isArray(value)) {
-    return value.map((entry) => normalize(entry));
+    if (Object.keys(value).length !== value.length) {
+      throw new TypeError('Canonical arrays must be dense and contain no extra enumerable properties');
+    }
+    const result = [];
+    for (let index = 0; index < value.length; index += 1) {
+      if (!Object.hasOwn(value, index)) throw new TypeError('Canonical arrays must not contain sparse indexes');
+      result.push(normalize(value[index]));
+    }
+    return result;
   }
 
   if (typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
-    const result = {};
+    // Preserve prototype-named JSON keys as ordinary own properties instead
+    // of invoking legacy Object.prototype setters such as __proto__.
+    const result = Object.create(null);
     for (const key of Object.keys(value).sort()) {
       const entry = value[key];
       if (entry === undefined || typeof entry === 'function' || typeof entry === 'symbol') {

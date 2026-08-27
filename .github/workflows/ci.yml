@@ -14,12 +14,53 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Install exact verification runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.20.0
+          check-latest: false
+          package-manager-cache: false
+          token: ''
+          mirror-token: ''
       - name: Require supported Node runtime
-        run: node -e "const [major,minor]=process.versions.node.split('.').map(Number);if(major<20||(major===20&&minor<11)||major>=25)process.exit(1)"
+        run: node -e "if(process.versions.node!=='24.20.0')process.exit(1)"
       - name: Install from lockfile
         run: npm ci --ignore-scripts
       - name: Complete repository gate
         run: npm run verify
+
+  compatibility:
+    name: Node ${{ matrix.node }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14, windows-2022]
+        node: [22.23.2, 24.20.0]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install exact compatibility runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          check-latest: false
+          package-manager-cache: false
+          token: ''
+          mirror-token: ''
+      - name: Require exact Node and safe Git floor
+        env:
+          EXPECTED_NODE: ${{ matrix.node }}
+        run: |
+          node -e "if(process.versions.node!==process.env.EXPECTED_NODE){console.error('Expected Node '+process.env.EXPECTED_NODE+', received '+process.versions.node);process.exit(1)}"
+          git --no-lazy-fetch --version
+      - name: Install from lockfile
+        run: npm ci --ignore-scripts
+      - name: Cross-platform runtime and installed-package gate
+        run: npm run lint && npm test && npm run fixtures:check && npm run package:smoke

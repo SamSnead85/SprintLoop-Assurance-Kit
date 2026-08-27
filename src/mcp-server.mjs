@@ -1,6 +1,7 @@
 import { once } from 'node:events';
 import { TextDecoder } from 'node:util';
 import { McpToolInputError } from './mcp-config.mjs';
+import { parseJsonStrictText } from './strict-json.mjs';
 import {
   LEGACY_MCP_VERSIONS,
   MCP_SERVER_VERSION,
@@ -169,7 +170,7 @@ async function processFrame(bytes, decoder, server, output, maxBytes) {
   let message;
   try {
     if (bytes.length === 0) throw new SyntaxError('empty frame');
-    message = JSON.parse(decoder.decode(bytes));
+    message = parseJsonStrictText(decoder.decode(bytes), { maxDepth: 128, maxValues: 100_000 });
   } catch {
     await writeRpc(output, errorResponse(null, ERROR.PARSE, 'Invalid JSON-RPC message.'), maxBytes);
     return;

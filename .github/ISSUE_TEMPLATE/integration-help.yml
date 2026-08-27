@@ -1,0 +1,78 @@
+name: Integration help
+description: Diagnose a public-safe CLI, Action, MCP, shadow, or dossier workflow.
+title: "integration: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use synthetic or redacted inputs only. Do not include customer data, private source, credentials, keys, tokens, internal hostnames, regulated evidence, absolute local paths, or suspected vulnerabilities. Report security issues privately.
+
+        The pre-1.0 Kit is recommended for shadow or advisory adoption. MCP and the shadow provider are always advisory; support cannot turn their output into release authority.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Integration surface
+      options:
+        - CLI or library
+        - GitHub Action
+        - Read-only local MCP
+        - Shadow provider
+        - Offline dossier verification
+        - Other protocol implementation
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Tagged version or full source commit
+      placeholder: v0.x.0 or 40-character commit
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform versions
+      description: Operating system, Node version, Git version, and CI or MCP client version when applicable.
+      placeholder: Ubuntu 24.04; Node 22.23.2; Git 2.45 or newer; GitHub Actions
+    validations:
+      required: true
+  - type: textarea
+    id: objective
+    attributes:
+      label: Intended workflow and decision boundary
+      description: Explain where evidence is produced, who owns verification, who authorizes, and where the result would be consumed.
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Minimal public-safe invocation or configuration
+      description: Replace private paths and identifiers with inert placeholders. Prefer a synthetic fixture.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Observed result
+      description: Include disposition, exit code, and stable reason or error codes. Do not paste raw private evidence or logs.
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: Checks already completed
+      description: Include checksum/pin verification, doctor result status, or the smallest relevant test where available.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Public-safety confirmation
+      options:
+        - label: I reviewed this report and removed secrets, personal or customer data, private source, private paths, and proprietary evidence.
+          required: true
+        - label: This is not a suspected vulnerability, leaked credential, bypass, or unsafe default.
+          required: true
+        - label: I understand that setup or advisory output is not verifier identity, finite authorization, or deployment permission.
+          required: true

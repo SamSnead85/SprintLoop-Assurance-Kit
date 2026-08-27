@@ -13,12 +13,20 @@ jobs:
     timeout-minutes: 8
     steps:
       - name: Checkout release source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Require supported Node runtime
-        run: node -e "const [major,minor]=process.versions.node.split('.').map(Number);if(major<20||(major===20&&minor<11)||major>=25)process.exit(1)"
+      - name: Install exact smoke runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.20.0
+          check-latest: false
+          package-manager-cache: false
+          token: ''
+          mirror-token: ''
+      - name: Require exact Node runtime
+        run: node -e "if(process.versions.node!=='24.20.0')process.exit(1)"
       - name: Install without lifecycle scripts
         run: npm ci --ignore-scripts
       - name: Build out-of-tree fixture inputs
@@ -50,7 +58,7 @@ jobs:
             "$head_sha" "$policy_digest" "$trust_digest" >> "$GITHUB_OUTPUT"
       - name: Resolve reviewed remote materializer
         id: bundle
-        uses: SamSnead85/SprintLoop-Assurance-Kit/materialize-bundle@7dfb1e417256f08a7b5e149093cc4d4c5987ea5e
+        uses: SamSnead85/SprintLoop-Assurance-Kit/materialize-bundle@9194e6181651c81fa101e6a4aa38d87a4891f0b4
         with:
           source: ${{ runner.temp }}/assurance-provider-inbox
           destination: ${{ runner.temp }}/assurance-bundle
@@ -64,7 +72,7 @@ jobs:
           expected-environment: remote-smoke
       - name: Resolve reviewed remote evaluator
         id: assure
-        uses: SamSnead85/SprintLoop-Assurance-Kit@7dfb1e417256f08a7b5e149093cc4d4c5987ea5e
+        uses: SamSnead85/SprintLoop-Assurance-Kit@9194e6181651c81fa101e6a4aa38d87a4891f0b4
         with:
           candidate: ${{ steps.inputs.outputs.candidate }}
           candidate-root: .
@@ -85,7 +93,7 @@ jobs:
         run: test "$CONCLUSION" = PASS
       - name: Resolve reviewed remote advisory shadow preparer
         id: shadow
-        uses: SamSnead85/SprintLoop-Assurance-Kit/prepare-shadow-bundle@7dfb1e417256f08a7b5e149093cc4d4c5987ea5e
+        uses: SamSnead85/SprintLoop-Assurance-Kit/prepare-shadow-bundle@9194e6181651c81fa101e6a4aa38d87a4891f0b4
         with:
           candidate-root: .
           candidate: ${{ steps.inputs.outputs.candidate }}

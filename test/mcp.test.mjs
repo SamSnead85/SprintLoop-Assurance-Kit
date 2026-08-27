@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { lstat, mkdir, mkdtemp, readFile, rename, rm, symlink } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { createDossier } from '../src/dossier.mjs';
+import { collectEvidence } from '../src/collect-evidence.mjs';
 import { createExampleBundle, writeExampleBundle } from '../src/example.mjs';
-import { loadMcpConfig, validateMcpConfig } from '../src/mcp-config.mjs';
+import { loadMcpConfig, resolveGrantedDirectoryBinding, validateMcpConfig } from '../src/mcp-config.mjs';
 import { MCP_SERVER_VERSION, callMcpTool, listMcpTools } from '../src/mcp-tools.mjs';
 import { readJson, writeJsonAtomic } from '../src/io.mjs';
 import { validateJsonSchema } from '../src/schema-check.mjs';
@@ -127,6 +128,126 @@ test('MCP evaluates live evidence and verifies dossiers without persisting or au
     assert.equal(replay.recorded.conclusion, 'PASS');
     assert.equal(replay.current.conclusion, 'BLOCK');
     assert.ok(replay.current.reasons.some((entry) => entry.code === 'receiver.environment_mismatch'));
+  });
+});
+
+test('MCP bundle evaluation retains the granted evidence-root identity across the dossier boundary', async (context) => {
+  await withMcpFixture(async (fixture) => {
+    if (!await symlinksAvailable(fixture.root)) {
+      context.skip('directory symlinks are unavailable');
+      return;
+    }
+    const displaced = path.join(fixture.root, 'bundle-before-evaluation-race');
+    const outside = path.join(fixture.root, 'replacement-evidence-root');
+    await mkdir(outside);
+
+    await assert.rejects(
+      callMcpTool('assurance_evaluate_bundle', {
+        bundleRootId: 'bundle',
+        receiverRootId: 'receiver',
+        candidate: fixture.bundle.candidate,
+        receiverContext: fixture.bundle.receiverContext,
+        at: fixture.bundle.at,
+      }, fixture.config, {
+        afterEvidenceRootBound: async () => {
+          await rename(fixture.bundleRoot, displaced);
+          await symlink(outside, fixture.bundleRoot, 'dir');
+        },
+      }),
+      (error) => error?.code === 'ROOT_CHANGED',
+    );
+  });
+});
+
+test('MCP bundle evaluation rejects an ABA root swap used only for the evidence file open', async (context) => {
+  await withMcpFixture(async (fixture) => {
+    if (!await symlinksAvailable(fixture.root)) {
+      context.skip('directory symlinks are unavailable');
+      return;
+    }
+    const displaced = path.join(fixture.root, 'bundle-during-leaf-open');
+    const outside = path.join(fixture.root, 'outside-with-matching-evidence');
+    await writeExampleBundle(outside, fixture.bundle);
+    let swaps = 0;
+
+    const evaluated = await callMcpTool('assurance_evaluate_bundle', {
+      bundleRootId: 'bundle',
+      receiverRootId: 'receiver',
+      candidate: fixture.bundle.candidate,
+      receiverContext: fixture.bundle.receiverContext,
+      at: fixture.bundle.at,
+    }, fixture.config, {
+      beforeEvidenceFileOpen: async () => {
+        await rename(fixture.bundleRoot, displaced);
+        await symlink(outside, fixture.bundleRoot, 'dir');
+      },
+      afterEvidenceFileOpen: async () => {
+        await rm(fixture.bundleRoot, { force: true });
+        await rename(displaced, fixture.bundleRoot);
+        swaps += 1;
+      },
+    });
+
+    assert.equal(swaps, fixture.bundle.manifest.evidence.length);
+    assert.equal(evaluated.decision.conclusion, 'BLOCK');
+    assert.ok(evaluated.decision.reasons.some((entry) => entry.code === 'evidence.path_changed'));
+  });
+});
+
+test('MCP collects standard evidence under a granted bundle root without returning report content', async () => {
+  await withMcpFixture(async (fixture) => {
+    await mkdir(path.join(fixture.bundleRoot, 'ci'));
+    await writeFile(
+      path.join(fixture.bundleRoot, 'ci/junit.xml'),
+      '<testsuite name="private"><testcase name="TOP_SECRET_TEST"/></testsuite>\n',
+      'utf8',
+    );
+    const collected = await callMcpTool('assurance_collect_evidence', {
+      bundleRootId: 'bundle',
+      evidenceRoot: 'ci',
+      inputs: [{ id: 'tests', path: 'junit.xml', format: 'junit' }],
+    }, fixture.config);
+    assert.equal(collected.mode, 'ADVISORY_READ_ONLY');
+    assert.equal(collected.enforcementEligible, false);
+    assert.equal(collected.claimsVerified, false);
+    assert.equal(collected.schemaVersion, 'assurance.sprintloop.dev/mcp-evidence-collection/v1');
+    assert.equal(collected.pathBase, 'ci');
+    assert.equal(collected.evidence[0].inspectionLevel, 'STRUCTURE_FULL');
+    assert.equal(collected.evidence[0].claimsVerified, false);
+    assert.equal(collected.totals.structureFullCount, 1);
+    assert.doesNotMatch(JSON.stringify(collected), /TOP_SECRET_TEST|summary/);
+    const schema = listMcpTools().find((tool) => tool.name === 'assurance_collect_evidence').outputSchema;
+    assert.deepEqual(validateJsonSchema(schema, collected), []);
+    assert.notEqual(collected.schemaVersion, 'assurance.sprintloop.dev/evidence-collection/v1');
+  });
+});
+
+test('MCP evidence root binding rejects replacement between grant resolution and collection', async (context) => {
+  await withMcpFixture(async (fixture) => {
+    const evidenceDirectory = path.join(fixture.bundleRoot, 'ci-race');
+    const displaced = path.join(fixture.bundleRoot, 'ci-race-original');
+    const outside = path.join(fixture.root, 'outside-evidence');
+    await Promise.all([mkdir(evidenceDirectory), mkdir(outside)]);
+    await writeFile(path.join(evidenceDirectory, 'junit.xml'), '<testsuite/>\n');
+    await writeFile(path.join(outside, 'junit.xml'), '<testsuite><testcase name="outside"/></testsuite>\n');
+    const binding = await resolveGrantedDirectoryBinding(fixture.config, 'bundle', 'bundle', 'ci-race');
+    await rename(evidenceDirectory, displaced);
+    try {
+      await symlink(outside, evidenceDirectory, 'dir');
+    } catch (error) {
+      if (['EPERM', 'EACCES', 'ENOTSUP'].includes(error?.code)) {
+        context.skip(`symlinks unavailable: ${error.code}`);
+        return;
+      }
+      throw error;
+    }
+    await assert.rejects(
+      collectEvidence([{ id: 'tests', path: 'junit.xml', format: 'junit' }], {
+        root: binding.path,
+        rootIdentity: binding.identity,
+      }),
+      (error) => error?.code === 'ESTALE',
+    );
   });
 });
 
@@ -263,6 +384,24 @@ test('malformed notification-shaped messages are suppressed without hiding later
   });
 });
 
+test('duplicate JSON-RPC keys fail at the strict framing boundary', async () => {
+  await withMcpFixture(async (fixture) => {
+    const duplicate = '{"jsonrpc":"2.0","id":"duplicate","method":"tools/list","method":"server/discover","params":{}}';
+    const valid = JSON.stringify(rpc('after-duplicate', 'server/discover', { _meta: MODERN_META }));
+    const result = spawnSync(process.execPath, [executable, 'mcp', '--config', fixture.configPath], {
+      cwd: kitRoot,
+      encoding: 'utf8',
+      input: `${duplicate}\n${valid}\n`,
+      maxBuffer: 2_000_000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const responses = parseLines(result.stdout);
+    assert.equal(responses[0].id, null);
+    assert.equal(responses[0].error.code, -32700);
+    assert.equal(responses[1].id, 'after-duplicate');
+  });
+});
+
 test('inode-bound JSON reads reject a document replaced after grant resolution', async () => {
   await withMcpFixture(async (fixture) => {
     const policy = path.join(fixture.receiverRoot, 'policy.json');
@@ -288,6 +427,39 @@ test('configured root grants remain bound to their startup directory identity', 
       (error) => error?.code === 'ROOT_CHANGED',
     );
   });
+});
+
+test('MCP startup rejects configured root replacement before and after canonical resolution', async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'assurance-mcp-startup-race-'));
+  try {
+    if (!await symlinksAvailable(root)) {
+      context.skip('directory symlinks are unavailable');
+      return;
+    }
+    for (const hookName of ['afterRootLeafLstat', 'afterRootResolved']) {
+      const granted = path.join(root, `granted-${hookName}`);
+      const displaced = path.join(root, `displaced-${hookName}`);
+      const outside = path.join(root, `outside-${hookName}`);
+      const configPath = path.join(root, `config-${hookName}.json`);
+      await Promise.all([mkdir(granted), mkdir(outside)]);
+      await writeJsonAtomic(configPath, {
+        schemaVersion: 'assurance.sprintloop.dev/mcp-server-config/v1',
+        roots: [{ id: 'bundle', kind: 'bundle', path: granted }],
+      });
+      await assert.rejects(
+        loadMcpConfig(configPath, {
+          [hookName]: async () => {
+            await rename(granted, displaced);
+            await symlink(outside, granted, 'dir');
+          },
+        }),
+        /changed while the server was binding it/,
+        hookName,
+      );
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test('MCP configuration runtime validation mirrors the closed public schema', () => {
@@ -437,33 +609,137 @@ test('MCP identity matches the source package and minimum framing can carry its 
 });
 
 test('MCP implementation has no network, process, credential, key, or filesystem-write surface', async () => {
-  const sources = await Promise.all([
-    'bin/sprintloop-assure.mjs',
-    'src/bounded.mjs',
-    'src/canonical.mjs',
-    'src/dossier.mjs',
-    'src/evaluate.mjs',
-    'src/evidence.mjs',
-    'src/mcp-cli.mjs',
-    'src/mcp-config.mjs',
-    'src/mcp-server.mjs',
-    'src/mcp-tools.mjs',
-    'src/read-json.mjs',
-    'src/schema-check.mjs',
-    'src/validate.mjs',
-    'src/verify-signature.mjs',
-  ].map((file) => readFile(path.join(kitRoot, file), 'utf8')));
-  const implementation = sources.join('\n');
+  const binSource = await readFile(executable, 'utf8');
+  assert.deepEqual(staticModuleSpecifiers(binSource, 'bin/sprintloop-assure.mjs'), ['node:process']);
+  const dynamicImports = [...binSource.matchAll(/\bimport\s*\(\s*(['"])([^'"\r\n]+)\1\s*\)/gu)]
+    .map((match) => match[2]).sort();
+  assert.equal([...binSource.matchAll(/\bimport\s*\(/gu)].length, dynamicImports.length,
+    'binary contains an unrecognized dynamic import');
+  assert.deepEqual(dynamicImports, ['../src/cli.mjs', '../src/mcp-cli.mjs']);
+
+  const graph = await collectMcpModuleGraph(path.join(kitRoot, 'src/mcp-cli.mjs'));
+  const sources = [...graph.values()];
+  const implementation = [binSource, ...sources].join('\n');
+  const builtinSpecifiers = [...new Set(sources.flatMap((source, index) =>
+    staticModuleSpecifiers(source, `MCP graph module ${index}`).filter((specifier) => specifier.startsWith('node:'))))].sort();
+  assert.deepEqual(builtinSpecifiers, [
+    'node:crypto',
+    'node:events',
+    'node:fs',
+    'node:fs/promises',
+    'node:path',
+    'node:process',
+    'node:util',
+  ]);
+  const builtinImports = [...new Set(sources.flatMap((source) => nodeImportDeclarations(source)
+    .map(({ specifier, clause }) => `${specifier}:${clause}`)))].sort();
+  assert.deepEqual(builtinImports, [
+    'node:crypto:{ createHash }',
+    'node:crypto:{ createPublicKey, verify }',
+    'node:events:{ once }',
+    'node:fs/promises:{ lstat, open, realpath }',
+    'node:fs/promises:{ lstat, realpath }',
+    'node:fs/promises:{ open }',
+    'node:fs:{ constants }',
+    'node:path:path',
+    'node:process:process',
+    'node:util:{ TextDecoder }',
+  ]);
   assert.doesNotMatch(implementation, /node:(?:child_process|cluster|dgram|dns|http|https|net|tls|worker_threads)/);
-  assert.doesNotMatch(implementation, /\bfetch\s*\(/);
+  assert.doesNotMatch(implementation, /\b(?:EventSource|WebSocket|fetch|globalThis)\b/);
   assert.doesNotMatch(implementation, /process\.env|process\.cwd/);
-  assert.doesNotMatch(implementation, /\b(?:appendFile|copyFile|mkdir|rename|rm|symlink|truncate|unlink|writeFile)\b/);
+  assert.doesNotMatch(implementation, /\b(?:appendFile(?:Sync)?|chmod(?:Sync)?|chown(?:Sync)?|copyFile(?:Sync)?|cp(?:Sync)?|createRequire|getBuiltinModule|link(?:Sync)?|mkdir(?:Sync)?|mkdtemp(?:Sync)?|rename(?:Sync)?|rm(?:Sync)?|rmdir(?:Sync)?|symlink(?:Sync)?|truncate(?:Sync)?|unlink(?:Sync)?|utimes(?:Sync)?|writeFile(?:Sync)?)\s*\(/);
+  assert.doesNotMatch(implementation, /\b(?:eval|Function|require)\s*\(|process\.(?:binding|dlopen)\s*\(/);
+  assert.doesNotMatch(implementation, /\bO_(?:APPEND|CREAT|RDWR|TRUNC|WRONLY)\b/);
+  assert.doesNotMatch(implementation, /\bopen\s*\([^,\r\n]+,\s*['"][^'"]*[+awx][^'"]*['"]/u);
+  const readOnlyOpen = /\bopen\s*\([^,\r\n]+,\s*constants\.O_RDONLY \| \(constants\.O_NOFOLLOW \?\? 0\) \| \(constants\.O_NONBLOCK \?\? 0\)\)/gu;
+  assert.equal([...implementation.matchAll(/\bopen\s*\(/gu)].length, 3);
+  assert.equal([...implementation.matchAll(readOnlyOpen)].length, 3);
+  const streamWrites = [...implementation.matchAll(/\.(?:createWriteStream|write|writev)\s*\(/gu)].map((match) => match[0]);
+  assert.deepEqual(streamWrites, ['.write(', '.write(', '.write(']);
+  assert.match(implementation, /if \(!output\.write\(bytes\)\) await once\(output, 'drain'\)/u);
+  assert.match(implementation, /output\.write\(HELP\)/u);
+  assert.match(implementation, /\(streams\?\.errorOutput \?\? process\.stderr\)\.write\(/u);
   const forbiddenSigningSurface = new RegExp(`\\b(?:signDocument|generateKeyPair(?:Sync)?)\\s*\\(|BEGIN ${'PRIVATE'} KEY|privateKeyPem`);
   assert.doesNotMatch(implementation, forbiddenSigningSurface);
   assert.doesNotMatch(implementation, /import\s*\{[^}]*\bsign\b[^}]*\}\s*from\s*['"]node:crypto['"]/);
   const names = listMcpTools().map((tool) => tool.name).join(' ');
   assert.doesNotMatch(names, /approve|authorize|deploy|enforce|key|merge|mutate|release|submit|write/);
+
+  assert.deepEqual(staticModuleSpecifiers("import'./write.mjs';", 'compact-side-effect'), ['./write.mjs']);
+  assert.deepEqual(staticModuleSpecifiers("import{x}from'./write.mjs';", 'compact-import'), ['./write.mjs']);
+  assert.deepEqual(staticModuleSpecifiers("export*from'./write.mjs';", 'compact-export'), ['./write.mjs']);
+  assert.throws(() => staticModuleSpecifiers("const x=1;import'./write.mjs';", 'same-line-import'),
+    /unrecognized static import/);
+  assert.throws(() => staticModuleSpecifiers("const x=1;export*from'./write.mjs';", 'same-line-export'),
+    /unrecognized static export/);
+  assert.throws(() => staticModuleSpecifiers("import/*gap*/'./write.mjs';", 'comment-import'),
+    /comment-separated module syntax/);
+  assert.throws(() => staticModuleSpecifiers("export/*gap*/*from'./write.mjs';", 'comment-export'),
+    /comment-separated module syntax/);
+  assert.throws(() => staticModuleSpecifiers("await import/*gap*/('./write.mjs');", 'comment-dynamic-import'),
+    /comment-separated module syntax/);
 });
+
+async function collectMcpModuleGraph(entry) {
+  const pending = [entry];
+  const graph = new Map();
+  while (pending.length > 0) {
+    const file = pending.pop();
+    if (graph.has(file)) continue;
+    const relative = path.relative(path.join(kitRoot, 'src'), file);
+    assert.equal(relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative), false,
+      `MCP import escaped src: ${relative}`);
+    const source = await readFile(file, 'utf8');
+    graph.set(file, source);
+    assert.doesNotMatch(source, /\bimport\s*\(/u, `MCP module ${relative} contains a dynamic import`);
+    const specifiers = new Set(staticModuleSpecifiers(source, relative));
+    for (const specifier of specifiers) {
+      if (specifier.startsWith('node:')) continue;
+      assert.ok(specifier.startsWith('./') || specifier.startsWith('../'), `MCP module ${relative} has bare import ${specifier}`);
+      assert.ok(specifier.endsWith('.mjs'), `MCP relative import must be an explicit .mjs module: ${specifier}`);
+      pending.push(path.resolve(path.dirname(file), specifier));
+    }
+  }
+  assert.ok(graph.size >= 10, `MCP graph unexpectedly contains only ${graph.size} modules`);
+  return graph;
+}
+
+function staticModuleSpecifiers(source, label) {
+  assert.doesNotMatch(source, /\b(?:export|from|import)\s*\/[*/]/u,
+    `${label} contains comment-separated module syntax`);
+  const specifiers = [];
+  const ranges = [];
+  const patterns = [
+    /(?:^|\n)[\t ]*import(?:\s*(['"])([^'"\r\n]+)\1|[\s\S]*?\bfrom\s*(['"])([^'"\r\n]+)\3)\s*;?/gu,
+    /(?:^|\n)[\t ]*export\s*(?:\*(?:\s+as\s+[A-Za-z_$][A-Za-z0-9_$]*)?|\{[\s\S]*?\})\s*from\s*(['"])([^'"\r\n]+)\1\s*;?/gu,
+  ];
+  for (const pattern of patterns) {
+    for (const match of source.matchAll(pattern)) {
+      specifiers.push(match[2] ?? match[4] ?? match[6]);
+      ranges.push([match.index, match.index + match[0].length]);
+    }
+  }
+  const declarationStarts = [...source.matchAll(/\bimport(?=\s*(?:['"{*]|[A-Za-z_$]))/gu)].length;
+  const recognizedImports = ranges.filter(([start]) => source.slice(start).match(/^(?:\n)?[\t ]*import/u)).length;
+  assert.equal(recognizedImports, declarationStarts, `${label} contains an unrecognized static import declaration`);
+  const exportFromStarts = [...source.matchAll(/\bexport(?=\s*(?:\*|\{))/gu)].length;
+  const recognizedExports = ranges.filter(([start]) => source.slice(start).match(/^(?:\n)?[\t ]*export/u)).length;
+  assert.equal(recognizedExports, exportFromStarts, `${label} contains an unrecognized static export declaration`);
+  return specifiers.sort();
+}
+
+function nodeImportDeclarations(source) {
+  const declarations = [];
+  const pattern = /(?:^|\n)[\t ]*import\s+([\s\S]*?)\s+from\s*(['"])(node:[^'"\r\n]+)\2\s*;?/gu;
+  for (const match of source.matchAll(pattern)) {
+    declarations.push({
+      clause: match[1].trim().replace(/\s+/gu, ' '),
+      specifier: match[3],
+    });
+  }
+  return declarations;
+}
 
 async function withMcpFixture(callback) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'assurance-mcp-test-'));
@@ -538,4 +814,20 @@ function parseLines(stdout) {
 
 function escapeRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function symlinksAvailable(root) {
+  const target = path.join(root, 'symlink-probe-target');
+  const link = path.join(root, 'symlink-probe-link');
+  await mkdir(target, { recursive: true });
+  try {
+    await symlink(target, link, 'dir');
+    return true;
+  } catch (error) {
+    if (['EPERM', 'EACCES', 'ENOTSUP'].includes(error?.code)) return false;
+    throw error;
+  } finally {
+    await rm(link, { force: true });
+    await rm(target, { recursive: true, force: true });
+  }
 }

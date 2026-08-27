@@ -1,5 +1,6 @@
 import { lstat, realpath } from 'node:fs/promises';
 import path from 'node:path';
+import { isPortableRelativePath } from './portable-path.mjs';
 import { readJson } from './read-json.mjs';
 
 export const MCP_CONFIG_SCHEMA_VERSION = 'assurance.sprintloop.dev/mcp-server-config/v1';
@@ -33,7 +34,7 @@ export class McpToolInputError extends Error {
   }
 }
 
-export async function loadMcpConfig(file) {
+export async function loadMcpConfig(file, { afterRootLeafLstat, afterRootResolved } = {}) {
   if (typeof file !== 'string' || !path.isAbsolute(file)) {
     throw new McpConfigError('MCP configuration path must be absolute');
   }
@@ -57,14 +58,20 @@ export async function loadMcpConfig(file) {
     let metadata;
     let resolved;
     try {
-      metadata = await lstat(grant.path);
-      if (metadata.isSymbolicLink()) throw new McpConfigError(`MCP root ${grant.id} cannot be a symbolic link`);
-      if (!metadata.isDirectory()) throw new McpConfigError(`MCP root ${grant.id} must be a directory`);
+      const requestedMetadata = await lstat(grant.path);
+      if (requestedMetadata.isSymbolicLink()) throw new McpConfigError(`MCP root ${grant.id} cannot be a symbolic link`);
+      if (!requestedMetadata.isDirectory()) throw new McpConfigError(`MCP root ${grant.id} must be a directory`);
+      await afterRootLeafLstat?.(Object.freeze({ rootId: grant.id }));
       resolved = await realpath(grant.path);
       metadata = await lstat(resolved);
       if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
         throw new McpConfigError(`MCP root ${grant.id} must resolve to a directory`);
       }
+      if (!sameIdentity(requestedMetadata, metadata)) {
+        throw new McpConfigError(`MCP root ${grant.id} changed while the server was binding it`);
+      }
+      await afterRootResolved?.(Object.freeze({ rootId: grant.id }));
+      await assertStartupRootStable(grant, resolved, requestedMetadata);
     } catch (error) {
       if (error instanceof McpConfigError) throw error;
       throw new McpConfigError(`MCP root ${grant.id} is unavailable`);
@@ -183,9 +190,14 @@ async function resolveGrantedFileBinding(config, rootId, kind, relative, { optio
 }
 
 export async function resolveGrantedDirectory(config, rootId, kind, relative) {
+  return (await resolveGrantedDirectoryBinding(config, rootId, kind, relative)).path;
+}
+
+export async function resolveGrantedDirectoryBinding(config, rootId, kind, relative) {
   const grant = await requireGrant(config, rootId, kind);
   const segments = relativeSegments(relative, true);
   let cursor = grant.path;
+  let requestedMetadata = null;
   for (const segment of segments) {
     cursor = path.join(cursor, segment);
     let metadata;
@@ -196,13 +208,33 @@ export async function resolveGrantedDirectory(config, rootId, kind, relative) {
     }
     if (metadata.isSymbolicLink()) throw new McpToolInputError('SYMLINK_REJECTED', 'Symbolic links are prohibited in configured directory paths.');
     if (!metadata.isDirectory()) throw new McpToolInputError('DIRECTORY_INVALID', 'Requested path is not a directory.');
+    requestedMetadata = metadata;
+  }
+  if (requestedMetadata === null) {
+    requestedMetadata = await lstat(cursor).catch(() => {
+      throw new McpToolInputError('DIRECTORY_NOT_FOUND', 'Requested directory is unavailable within its configured root grant.');
+    });
   }
   const resolved = await realpath(cursor).catch(() => {
     throw new McpToolInputError('DIRECTORY_UNAVAILABLE', 'Requested directory cannot be resolved.');
   });
   if (!inside(grant.path, resolved)) throw new McpToolInputError('PATH_ESCAPE', 'Requested directory resolves outside its configured root grant.');
+  const metadata = await lstat(resolved).catch(() => {
+    throw new McpToolInputError('DIRECTORY_UNAVAILABLE', 'Requested directory cannot be inspected.');
+  });
+  if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
+    throw new McpToolInputError('DIRECTORY_INVALID', 'Requested path is not a stable directory.');
+  }
+  if (!sameIdentity(requestedMetadata, metadata)) {
+    throw new McpToolInputError('PATH_CHANGED', 'Requested directory changed while its capability was being bound.');
+  }
+  await assertDirectoryBindingStable(cursor, resolved, metadata);
   await assertGrantStable(grant);
-  return resolved;
+  return Object.freeze({
+    requested: cursor,
+    path: resolved,
+    identity: Object.freeze({ dev: metadata.dev, ino: metadata.ino }),
+  });
 }
 
 export async function readGrantedJson(config, rootId, kind, relative, { optional = false, dossier = false } = {}) {
@@ -257,18 +289,54 @@ async function assertGrantStable(grant) {
   }
 }
 
+async function assertStartupRootStable(grant, resolved, identity) {
+  let requestedMetadata;
+  let resolvedAgain;
+  let canonicalMetadata;
+  try {
+    requestedMetadata = await lstat(grant.path);
+    resolvedAgain = await realpath(grant.path);
+    canonicalMetadata = await lstat(resolved);
+  } catch {
+    throw new McpConfigError(`MCP root ${grant.id} changed while the server was binding it`);
+  }
+  if (requestedMetadata.isSymbolicLink() || !requestedMetadata.isDirectory()
+    || canonicalMetadata.isSymbolicLink() || !canonicalMetadata.isDirectory()
+    || resolvedAgain !== resolved || !sameIdentity(requestedMetadata, identity)
+    || !sameIdentity(canonicalMetadata, identity)) {
+    throw new McpConfigError(`MCP root ${grant.id} changed while the server was binding it`);
+  }
+}
+
+async function assertDirectoryBindingStable(requested, resolved, identity) {
+  let requestedMetadata;
+  let resolvedAgain;
+  let canonicalMetadata;
+  try {
+    requestedMetadata = await lstat(requested);
+    resolvedAgain = await realpath(requested);
+    canonicalMetadata = await lstat(resolved);
+  } catch {
+    throw new McpToolInputError('PATH_CHANGED', 'Requested directory changed while its capability was being bound.');
+  }
+  if (requestedMetadata.isSymbolicLink() || !requestedMetadata.isDirectory()
+    || canonicalMetadata.isSymbolicLink() || !canonicalMetadata.isDirectory()
+    || resolvedAgain !== resolved || !sameIdentity(requestedMetadata, identity)
+    || !sameIdentity(canonicalMetadata, identity)) {
+    throw new McpToolInputError('PATH_CHANGED', 'Requested directory changed while its capability was being bound.');
+  }
+}
+
+function sameIdentity(left, right) {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
 function relativeSegments(value, allowDot) {
   if (allowDot && value === '.') return [];
-  if (typeof value !== 'string' || value.length < 1 || value.length > 1024
-    || /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/u.test(value) || value.includes('\\')) {
+  if (!isPortableRelativePath(value)) {
     throw new McpToolInputError('PATH_INVALID', 'Document paths must be bounded forward-slash relative paths.');
   }
-  if (path.posix.isAbsolute(value)) throw new McpToolInputError('PATH_INVALID', 'Absolute document paths are prohibited.');
   const segments = value.split('/');
-  if (segments.some((segment) => !segment || segment === '.' || segment === '..')) {
-    throw new McpToolInputError('PATH_INVALID', 'Empty, current-directory, and parent-directory path segments are prohibited.');
-  }
-  if (path.posix.normalize(value) !== value) throw new McpToolInputError('PATH_INVALID', 'Document path is not normalized.');
   return segments;
 }
 

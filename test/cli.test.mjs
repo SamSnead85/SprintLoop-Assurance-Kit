@@ -6,7 +6,9 @@ import path from 'node:path';
 import test from 'node:test';
 
 const root = path.resolve(import.meta.dirname, '..');
-const ACTION_REVISION = '7dfb1e417256f08a7b5e149093cc4d4c5987ea5e';
+const ACTION_REVISION = '9194e6181651c81fa101e6a4aa38d87a4891f0b4';
+const CHECKOUT_REVISION = '3d3c42e5aac5ba805825da76410c181273ba90b1';
+const SETUP_NODE_REVISION = '820762786026740c76f36085b0efc47a31fe5020';
 
 test('CLI demo is a no-secret PASS golden path', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'assurance-kit-cli-'));
@@ -94,6 +96,15 @@ test('CLI init emits fork-safe candidate and receiver-owned protected checkouts'
     assert.match(workflow, /ref: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
     assert.match(workflow, /sparse-checkout-cone-mode: false/);
     assert.equal((workflow.match(/persist-credentials: false/g) ?? []).length, 2);
+    const checkoutPins = [...workflow.matchAll(/actions\/checkout@([0-9a-f]{40})/g)]
+      .map((match) => match[1]);
+    assert.deepEqual(checkoutPins, [CHECKOUT_REVISION, CHECKOUT_REVISION]);
+    assert.match(workflow, new RegExp(`actions/setup-node@${SETUP_NODE_REVISION}`));
+    assert.match(workflow, /node-version: 24\.20\.0/);
+    assert.match(workflow, /package-manager-cache: false/);
+    assert.match(workflow, /token: ''/);
+    assert.match(workflow, /mirror-token: ''/);
+    assert.match(workflow, /process\.versions\.node!==['"]24\.20\.0['"]/);
     assert.match(workflow, /expected-policy-digest: \$\{\{ vars\.ASSURANCE_POLICY_DIGEST \}\}/);
     assert.match(workflow, /expected-trust-digest: \$\{\{ vars\.ASSURANCE_TRUST_DIGEST \}\}/);
     assert.match(workflow, /expected-environment: \$\{\{ vars\.ASSURANCE_ENVIRONMENT \}\}/);
